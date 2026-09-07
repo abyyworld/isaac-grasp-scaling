@@ -94,7 +94,15 @@ class ScalingConfig:
     train_split: str = "seen"
     workers: int = 2
     device: str | None = None
+    # Scene seed. Fixes which objects appear in every evaluation and every angle
+    # measurement, so all points are scored on identical scenes.
     seed: int = 0
+    # Training seed, deliberately separate. Changing it re-runs the training
+    # pipeline (initialisation, data order, augmentation draws, and the
+    # train/validation split) without touching the evaluation scenes. Varying the
+    # two together would confound run-to-run variance with a different test set,
+    # which is exactly the measurement this separation exists to make possible.
+    train_seed: int | None = None
     # Evaluation. 200 episodes per split is what the original study reported, so
     # the confidence intervals are directly comparable.
     eval_episodes: int = 200
@@ -116,6 +124,23 @@ class ScalingConfig:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
+def effective_train_seed(cfg: ScalingConfig) -> int:
+    """The training seed, defaulting to the scene seed when unset."""
+    return cfg.seed if cfg.train_seed is None else cfg.train_seed
+
+
+def point_dir(cfg: ScalingConfig, size: int) -> Path:
+    """Where a point's artefacts live.
+
+    Replicates get their own directory so a seed sweep never overwrites the
+    published curve, and so the seed is visible in the path rather than only
+    inside the JSON.
+    """
+    seed = effective_train_seed(cfg)
+    name = f"n{size:06d}" if seed == cfg.seed else f"n{size:06d}_seed{seed}"
+    return Path(cfg.out) / name
+
+
 def _train_one(cfg: ScalingConfig, size: int, run_dir: Path) -> dict[str, Any]:
     train_cfg = TrainConfig(
         data=cfg.data,
@@ -127,7 +152,7 @@ def _train_one(cfg: ScalingConfig, size: int, run_dir: Path) -> dict[str, Any]:
         pretrained=cfg.pretrained,
         train_split=cfg.train_split,
         device=cfg.device,
-        seed=cfg.seed,
+        seed=effective_train_seed(cfg),
         limit=size,
     )
     return train(train_cfg)
@@ -150,7 +175,7 @@ def _evaluate_one(cfg: ScalingConfig, checkpoint: Path, run_dir: Path) -> dict[s
 
 def run_point(cfg: ScalingConfig, size: int) -> dict[str, Any]:
     """Train, evaluate and measure orientation at one training-set size."""
-    run_dir = Path(cfg.out) / f"n{size:06d}"
+    run_dir = point_dir(cfg, size)
     point_file = run_dir / "point.json"
     if point_file.exists():
         print(f"[scaling] n={size}: already done, skipping", flush=True)
@@ -174,6 +199,8 @@ def run_point(cfg: ScalingConfig, size: int) -> dict[str, Any]:
 
     point = {
         "train_scenes": size,
+        "train_seed": effective_train_seed(cfg),
+        "scene_seed": cfg.seed,
         # The number of labelled grasps actually used, which is what the curve's
         # x axis means. Scenes times angles-per-scene is an upper bound: unstable
         # episodes are dropped at collection time.
@@ -251,8 +278,12 @@ def run_scaling(cfg: ScalingConfig) -> dict[str, Any]:
         "parity": manifest(),
     }
     result["reading"] = read_curve(result)
-    (out_dir / "scaling.json").write_text(json.dumps(result, indent=2, default=float))
-    write_csv(result, out_dir / "scaling.csv")
+    # A seed sweep is not the curve. Writing it to scaling.json would overwrite
+    # the published result with a partial one that merely looks like it.
+    seed = effective_train_seed(cfg)
+    stem = "scaling" if seed == cfg.seed else f"scaling_seed{seed}"
+    (out_dir / f"{stem}.json").write_text(json.dumps(result, indent=2, default=float))
+    write_csv(result, out_dir / f"{stem}.csv")
     return result
 
 
@@ -475,3 +506,84 @@ def read_curve(result: dict[str, Any]) -> dict[str, Any]:
             ),
         }
     return out
+
+# --------------------------------------------------------------------------- #
+# Repeated runs at the same size.
+# --------------------------------------------------------------------------- #
+
+
+def measure_seed_variance(points: list[dict[str, Any]], split: str = "unseen") -> dict[str, Any]:
+    """Directly measure how much re-running training moves a point.
+
+    ``decompose_scatter`` infers training variance by subtracting the known
+    binomial term from the scatter about a fitted line. That inference assumes
+    the true curve is log-linear, so anything curved is charged to training
+    noise. Repeated runs at one size make no such assumption: hold the data size
+    and the evaluation scenes fixed, change only the training seed, and whatever
+    the number does is what re-running does.
+
+    The observed spread still contains evaluation noise, because each replicate
+    is scored on a finite sample, so the binomial term is subtracted again here.
+    Variances add and the estimate is floored at zero.
+
+    Returns per-size statistics and a pooled estimate. Pooling is by degrees of
+    freedom, so a size with three seeds counts twice as much as one with two.
+    """
+    import numpy as np
+
+    by_size: dict[int, list[dict[str, Any]]] = {}
+    for point in points:
+        measurement = point.get(split, {})
+        if "rate" not in measurement or not measurement.get("n"):
+            continue
+        by_size.setdefault(int(point["train_samples"]), []).append(point)
+
+    per_size = []
+    pooled_numerator = 0.0
+    pooled_df = 0
+    for samples in sorted(by_size):
+        group = by_size[samples]
+        if len(group) < 2:
+            continue
+        rates = np.array([100.0 * p[split]["rate"] for p in group])
+        seeds = sorted(p.get("train_seed", 0) for p in group)
+        # Sample standard deviation, so ddof=1.
+        observed_sd = float(np.std(rates, ddof=1))
+        evaluation_variance = float(np.mean([
+            1e4 * p[split]["rate"] * (1.0 - p[split]["rate"]) / p[split]["n"]
+            for p in group]))
+        training_variance = observed_sd ** 2 - evaluation_variance
+        per_size.append({
+            "train_samples": samples,
+            "n_seeds": len(group),
+            "seeds": seeds,
+            "rates_pp": [float(r) for r in rates],
+            "mean_pp": float(np.mean(rates)),
+            "range_pp": float(rates.max() - rates.min()),
+            "observed_sd_pp": observed_sd,
+            "evaluation_sd_pp": float(np.sqrt(evaluation_variance)),
+            "training_sd_pp": float(np.sqrt(training_variance)) if training_variance > 0 else 0.0,
+        })
+        pooled_numerator += (len(group) - 1) * observed_sd ** 2
+        pooled_df += len(group) - 1
+
+    out: dict[str, Any] = {"per_size": per_size, "split": split}
+    if pooled_df:
+        pooled_observed = float(np.sqrt(pooled_numerator / pooled_df))
+        mean_evaluation_variance = float(np.mean(
+            [row["evaluation_sd_pp"] ** 2 for row in per_size]))
+        pooled_training_variance = pooled_observed ** 2 - mean_evaluation_variance
+        out["pooled"] = {
+            "degrees_of_freedom": pooled_df,
+            "observed_sd_pp": pooled_observed,
+            "evaluation_sd_pp": float(np.sqrt(mean_evaluation_variance)),
+            "training_sd_pp": (float(np.sqrt(pooled_training_variance))
+                               if pooled_training_variance > 0 else 0.0),
+        }
+    return out
+
+
+def load_points(root: Path | str) -> list[dict[str, Any]]:
+    """Every point under ``root``, replicates included."""
+    return [json.loads(path.read_text())
+            for path in sorted(Path(root).glob("n*/point.json"))]

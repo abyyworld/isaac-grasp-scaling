@@ -39,7 +39,11 @@ def main() -> int:
     parser.add_argument("--pretrained", action="store_true")
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--device", default=None)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=0,
+                        help="scene seed: fixes the evaluation scenes")
+    parser.add_argument("--train-seed", type=int, default=None,
+                        help="training seed, separate from the scene seed. Vary "
+                             "this to re-run training on identical test scenes")
     parser.add_argument("--eval-episodes", type=int, default=200)
     parser.add_argument("--eval-workers", type=int, default=4)
     parser.add_argument("--angle-episodes", type=int, default=40,
@@ -55,13 +59,16 @@ def main() -> int:
         data=args.data, out=args.out, sizes=tuple(sorted(args.sizes)),
         epochs=args.epochs, batch_size=args.batch_size, input_size=args.input_size,
         pretrained=args.pretrained, workers=args.workers, device=args.device,
-        seed=args.seed, eval_episodes=args.eval_episodes,
+        seed=args.seed, train_seed=args.train_seed,
+        eval_episodes=args.eval_episodes,
         eval_workers=args.eval_workers, angle_episodes=args.angle_episodes,
         label=args.label,
     )
     result = run_scaling(cfg)
 
-    figure = plot_scaling(result, Path(args.out) / "scaling_curve.png")
+    seed = cfg.train_seed if cfg.train_seed is not None else cfg.seed
+    suffix = "" if seed == cfg.seed else f"_seed{seed}"
+    figure = plot_scaling(result, Path(args.out) / f"scaling_curve{suffix}.png")
     print()
     print(f"{'train scenes':>13}{'samples':>10}{'seen':>9}{'held-out':>10}"
           f"{'gap':>8}{'angle err':>11}")
