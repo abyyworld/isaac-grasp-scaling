@@ -90,6 +90,8 @@ This matters more than usual here, so it is at the top rather than buried.
 | Oracle grasp, success criterion, batched collector | **tested against the originals** |
 | Isaac Lab backend, in contact with the simulator | **never executed** |
 
+124 tests, all passing without a GPU.
+
 The Isaac Lab backend was written on a machine with no NVIDIA GPU, where Isaac
 Sim cannot be installed. Everything about the port that can be checked without
 one is checked and passes; what remains unverified is the code's contact with
