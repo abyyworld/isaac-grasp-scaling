@@ -23,6 +23,7 @@ the scene to be built once for a run of any length.
 
 from __future__ import annotations
 
+import copy
 import math
 
 import isaaclab.sim as sim_utils
@@ -35,6 +36,7 @@ from simgrasp.scene import (
     CAMERA_FOVY_DEG,
     CAMERA_HEIGHT,
     CAMERA_X,
+    PLINTH_HALF,
     TABLE_CENTER_X,
     TABLE_HALF,
     TABLE_HEIGHT,
@@ -137,7 +139,33 @@ class GraspSceneCfg(InteractiveSceneCfg):
         init_state=AssetBaseCfg.InitialStateCfg(
             pos=(TABLE_CENTER_X, 0.0, TABLE_HEIGHT / 2.0)),
     )
-    robot = FRANKA_PANDA_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    plinth = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/Plinth",
+        spawn=sim_utils.CuboidCfg(
+            size=(2.0 * PLINTH_HALF[0], 2.0 * PLINTH_HALF[1], 2.0 * PLINTH_HALF[2]),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.25, 0.26, 0.28)),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, PLINTH_HALF[2])),
+    )
+    # The arm stands on the plinth with its base level with the table top, as in
+    # the MuJoCo scene. Mounting it on the ground instead would put every grasp
+    # 0.40 m out in the robot's own frame, which changes what is reachable
+    # rather than producing an error anyone would notice.
+    robot = FRANKA_PANDA_HIGH_PD_CFG.replace(
+        prim_path="{ENV_REGEX_NS}/Robot",
+        init_state=FRANKA_PANDA_HIGH_PD_CFG.init_state.replace(
+            pos=(0.0, 0.0, TABLE_HEIGHT)),
+    )
+    # Gravity compensation on the arm, matching the MuJoCo scene's gravcomp=1.
+    #
+    # Position servos with no integral term settle below their setpoint under
+    # load; the predecessor measured about 9 mm of droop at the TCP, which is
+    # large next to a 25 mm object and made "descend to the grasp height"
+    # quietly inaccurate. A real Panda compensates gravity in firmware. The
+    # grasped object is deliberately NOT compensated, so a payload still loads
+    # the arm; this flag covers the robot's own links only.
+
     object = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Object",
         spawn=MultiSlotObjectCfg(),
@@ -169,4 +197,10 @@ def build_scene_cfg(num_envs: int, env_spacing: float, image_size: int) -> Grasp
     cfg = GraspSceneCfg(num_envs=int(num_envs), env_spacing=float(env_spacing))
     cfg.camera.width = int(image_size)
     cfg.camera.height = int(image_size)
+    # Applied to this instance rather than in the class body: the upstream
+    # FRANKA_PANDA_HIGH_PD_CFG is a shared module-level object and .replace()
+    # does not deep-copy the spawn config, so mutating it there would change the
+    # Franka for every other Isaac Lab task in the process.
+    cfg.robot = copy.deepcopy(cfg.robot)
+    cfg.robot.spawn.rigid_props.disable_gravity = True
     return cfg

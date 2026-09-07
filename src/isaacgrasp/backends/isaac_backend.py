@@ -209,8 +209,6 @@ class IsaacBackend:
         MuJoCo original does, so the two backends see the same scene for the same
         index. Only the placement into the simulator is new here.
         """
-        import torch
-
         if len(episodes) > self.batch_size:
             raise ValueError(f"got {len(episodes)} episodes for {self.batch_size} environments")
 
@@ -243,7 +241,6 @@ class IsaacBackend:
         for view in self._views[len(episodes):]:
             view.state = None
 
-        _ = torch
         return self.observe()[: len(episodes)]
 
     @staticmethod
@@ -331,10 +328,7 @@ class IsaacBackend:
         return omni.usd.get_context().get_stage()
 
     def _set_object_poses(self, placements) -> None:
-        import torch
-
         origins = self._scene.env_origins
-        n = len(placements)
         root = self._objects.data.default_root_state.clone()
         for i, ((x, y), yaw) in enumerate(placements):
             root[i, 0] = origins[i, 0] + x
@@ -347,7 +341,6 @@ class IsaacBackend:
             root[i, 6] = float(np.sin(half))
         root[:, 7:] = 0.0
         self._objects.write_root_state_to_sim(root)
-        _ = torch, n
 
     def _retract_arm(self) -> None:
         """Park the arm in the capture pose so it never occludes the object."""
@@ -374,11 +367,10 @@ class IsaacBackend:
         root = self._objects.data.root_state_w.detach().cpu().numpy()
         origins = self._scene.env_origins.detach().cpu().numpy()
         positions = root[:, :3] - origins
-        quats = root[:, 3:7]
-        yaws = np.array([
-            float(np.arctan2(*(lambda m: (m[1, 0], m[0, 0]))(quat_to_mat(q))))
-            for q in quats
-        ])
+        yaws = np.empty(root.shape[0])
+        for i, quat in enumerate(root[:, 3:7]):
+            mat = quat_to_mat(quat)
+            yaws[i] = np.arctan2(mat[1, 0], mat[0, 0])
         return positions, yaws
 
     # -- observation ---------------------------------------------------------- #
@@ -494,22 +486,46 @@ class IsaacBackend:
         return results
 
     def _grasp_targets(self, grasps: Sequence[Grasp]):
-        """Grasp poses as an Isaac IK command: position then quaternion."""
+        """Grasp poses as an Isaac IK command: position then quaternion.
+
+        Two conversions happen here, and both are silent when wrong.
+
+        **TCP to hand body.** A grasp is specified at the fingertip-pad centre,
+        which sits ``TCP_OFFSET_Z`` along the hand's +z. The IK controller
+        drives the hand body, so the commanded position is the grasp position
+        minus that offset rotated into the world. For a top-down grasp the
+        hand's +z points down, so the hand sits 103.4 mm *above* the grasp
+        point. Commanding the hand to the grasp position would drive the gripper
+        straight through the table.
+
+        **World to robot base.** The controller works in the robot's base frame,
+        and the base stands on a plinth 0.40 m up so that it is level with the
+        table top. The offset is read from the robot's actual root state rather
+        than assumed, so this stays correct if the mount ever moves.
+        """
         import torch
+        from simgrasp.scene import TCP_OFFSET_Z
         from simgrasp.transforms import mat_to_quat, topdown_grasp_mat
+
+        base = (self._robot.data.root_state_w[:, :3]
+                - self._scene.env_origins).detach().cpu().numpy()
 
         command = torch.zeros((self.batch_size, 7), device=self.cfg.device,
                               dtype=torch.float32)
-        # A neutral pose for any unused environment, so the batch stays well posed.
-        command[:, 0] = float(np.mean(WORKSPACE_X))
-        command[:, 2] = TABLE_HEIGHT + 0.25
+        # A neutral, reachable pose for any unused environment, so an
+        # under-filled batch cannot drag the solver somewhere degenerate.
+        command[:, 0] = float(np.mean(WORKSPACE_X)) - float(np.mean(base[:, 0]))
+        command[:, 2] = TABLE_HEIGHT + 0.25 - float(np.mean(base[:, 2]))
         command[:, 3] = 1.0
+
         for i, grasp in enumerate(grasps):
-            quat = mat_to_quat(topdown_grasp_mat(grasp.yaw))
-            command[i, 0] = grasp.x
-            command[i, 1] = grasp.y
-            command[i, 2] = grasp.z
-            command[i, 3:7] = torch.tensor(quat, device=self.cfg.device, dtype=torch.float32)
+            mat = topdown_grasp_mat(grasp.yaw)
+            tcp = np.array([grasp.x, grasp.y, grasp.z], dtype=np.float64)
+            hand = tcp - mat @ np.array([0.0, 0.0, TCP_OFFSET_Z])
+            command[i, :3] = torch.tensor(hand - base[i], device=self.cfg.device,
+                                          dtype=torch.float32)
+            command[i, 3:7] = torch.tensor(mat_to_quat(mat), device=self.cfg.device,
+                                           dtype=torch.float32)
         return command
 
     def _move_to_pose(self, command, seconds: float) -> np.ndarray:

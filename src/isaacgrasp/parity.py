@@ -38,6 +38,13 @@ EXPECTED: dict[str, Any] = {
     "CAMERA_HEIGHT": 0.55,
     "CAMERA_X": 0.54,
     "CAMERA_FOVY_DEG": 48.0,
+    # The arm is mounted on a plinth so its base is level with the table top.
+    # Getting this wrong puts every grasp 0.40 m out in the robot's own frame,
+    # which changes reachability rather than producing an obvious error.
+    "PLINTH_HALF": (0.13, 0.13, 0.20),
+    # Grasps are specified at the fingertip-pad centre, not at the hand body
+    # origin. The IK target has to be offset by this along the hand's +z.
+    "TCP_OFFSET_Z": 0.1034,
     # Success criterion (simgrasp.env). Changing any of these changes what
     # "success" means and makes every number incomparable.
     "LIFT_SUCCESS_THRESHOLD": 0.08,
