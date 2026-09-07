@@ -66,8 +66,12 @@ def main() -> int:
     )
     result = run_scaling(cfg)
 
+    # A seed sweep writes seed-suffixed artefacts so it can never overwrite the
+    # published curve. The message has to name them, or a correct guard still
+    # reads as though the curve had been replaced.
     seed = cfg.train_seed if cfg.train_seed is not None else cfg.seed
     suffix = "" if seed == cfg.seed else f"_seed{seed}"
+    stem = f"scaling{suffix}"
     figure = plot_scaling(result, Path(args.out) / f"scaling_curve{suffix}.png")
     print()
     print(f"{'train scenes':>13}{'samples':>10}{'seen':>9}{'held-out':>10}"
@@ -83,7 +87,7 @@ def main() -> int:
         print(f"{name + ' control':>13}{'':>10}{control['seen']['rate']:>8.1%}"
               f"{control['unseen']['rate']:>10.1%}")
     print()
-    print(f"wrote {args.out}/scaling.json, scaling.csv and {figure.name}")
+    print(f"wrote {args.out}/{stem}.json, {stem}.csv and {figure.name}")
     return 0
 
 
