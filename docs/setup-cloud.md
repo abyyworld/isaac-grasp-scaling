@@ -41,7 +41,9 @@ Kaggle offers **T4 x2**, **P100** and **TPU v5e-8**. For this project:
   than as proven impossible. If you want to try it, the gate is
   `python scripts/check_setup.py --isaac --num-envs 4`, and it will tell you
   within a few minutes which stage fails.
-* **T4 x2 for training: yes, and this is the useful part.** Training the network
+* **T4 x2 for training: yes, and this is the useful part.** There is a ready notebook at
+  [`notebooks/kaggle_scaling.ipynb`](../notebooks/kaggle_scaling.ipynb): attach your dataset,
+  set the accelerator to T4 x2, run it. Training the network
   is ordinary PyTorch. 30 hours a week of free T4 covers the 30 epochs at
   224x224 with `--pretrained` that the original study said it needed and could
   not afford on a laptop CPU. Upload the dataset, run `scripts/run_scaling.py`,

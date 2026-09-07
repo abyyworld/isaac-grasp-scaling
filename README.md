@@ -87,9 +87,13 @@ affordable:
   whole run. GCP's free trial and the GitHub Student Pack's Azure credit both
   cover it.
 * **Training** is ordinary PyTorch and runs free on Kaggle's T4 x2, which is 30
-  hours a week. Kaggle's P100 has no RT cores at all and cannot run Isaac Sim;
-  its T4 has them but is not on NVIDIA's supported list, and the session disk
-  and 12-hour limit sit badly against a 30 GB install that does not persist.
+  hours a week. [`notebooks/kaggle_scaling.ipynb`](notebooks/kaggle_scaling.ipynb)
+  is ready to run: attach your dataset, set the accelerator, go. That is where the
+  settings the original study said it needed and could not afford belong, namely
+  30 epochs at 224 px with ImageNet initialisation.
+* **Kaggle cannot run Isaac Sim.** Its P100 has no RT cores at all; its T4 has
+  them but is not on NVIDIA's supported list, and the session disk and 12-hour
+  limit sit badly against a 30 GB install that does not persist.
 * **The MuJoCo control arm and every evaluation** are CPU only.
 
 Full detail, including the exact provisioning steps, in
