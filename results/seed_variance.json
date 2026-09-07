@@ -33,14 +33,31 @@
       "observed_sd_pp": 3.865517070486461,
       "evaluation_sd_pp": 1.2874033584729407,
       "training_sd_pp": 3.6448339900213322
+    },
+    {
+      "train_samples": 6144,
+      "n_seeds": 2,
+      "seeds": [
+        0,
+        1
+      ],
+      "rates_pp": [
+        48.4,
+        47.13333333333333
+      ],
+      "mean_pp": 47.766666666666666,
+      "range_pp": 1.2666666666666657,
+      "observed_sd_pp": 0.8956685895029596,
+      "evaluation_sd_pp": 1.2896022929857383,
+      "training_sd_pp": 0.0
     }
   ],
   "split": "unseen",
   "pooled": {
-    "degrees_of_freedom": 2,
-    "observed_sd_pp": 3.5722697422102825,
-    "evaluation_sd_pp": 1.2862685048879439,
-    "training_sd_pp": 3.3326602653802637
+    "degrees_of_freedom": 3,
+    "observed_sd_pp": 2.962231391166939,
+    "evaluation_sd_pp": 1.2873807268257782,
+    "training_sd_pp": 2.6678578820867407
   },
   "inferred_from_curve_sd_pp": 2.3298299473940727
 }
