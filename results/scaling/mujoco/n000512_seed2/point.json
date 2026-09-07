@@ -1,0 +1,165 @@
+{
+  "train_scenes": 512,
+  "train_seed": 2,
+  "scene_seed": 0,
+  "train_samples": 1536,
+  "epochs": 12,
+  "best_val_ap": 0.6534024776995174,
+  "best_epoch": 11,
+  "train_seconds": 1357.8324436490002,
+  "point_seconds": 2093.877487897,
+  "device": "cpu",
+  "seen": {
+    "rate": 0.774,
+    "ci95": [
+      0.7521497049004584,
+      0.7944504157505463
+    ],
+    "n": 1500,
+    "by_category": {
+      "box": {
+        "n": 381,
+        "successes": 302,
+        "rate": 0.7926509186351706,
+        "ci95": [
+          0.7491195247469667,
+          0.8303396605386156
+        ],
+        "split": "seen"
+      },
+      "cylinder": {
+        "n": 396,
+        "successes": 345,
+        "rate": 0.8712121212121212,
+        "ci95": [
+          0.8346193731204377,
+          0.9006718021849831
+        ],
+        "split": "seen"
+      },
+      "capsule": {
+        "n": 369,
+        "successes": 232,
+        "rate": 0.6287262872628726,
+        "ci95": [
+          0.5783396052392593,
+          0.6764602883348483
+        ],
+        "split": "seen"
+      },
+      "sphere": {
+        "n": 354,
+        "successes": 282,
+        "rate": 0.7966101694915254,
+        "ci95": [
+          0.7515985685839633,
+          0.8352532675357053
+        ],
+        "split": "seen"
+      }
+    },
+    "failure_reasons": {
+      "closed_empty": 298,
+      "success": 1161,
+      "dropped": 30,
+      "no_lift": 11
+    }
+  },
+  "unseen": {
+    "rate": 0.5566666666666666,
+    "ci95": [
+      0.531413163150578,
+      0.5816306574220141
+    ],
+    "n": 1500,
+    "by_category": {
+      "ellipsoid": {
+        "n": 303,
+        "successes": 231,
+        "rate": 0.7623762376237624,
+        "ci95": [
+          0.7113538863240871,
+          0.8068287851259379
+        ],
+        "split": "unseen"
+      },
+      "l_shape": {
+        "n": 317,
+        "successes": 125,
+        "rate": 0.3943217665615142,
+        "ci95": [
+          0.3420963620966484,
+          0.4490778497262573
+        ],
+        "split": "unseen"
+      },
+      "t_shape": {
+        "n": 314,
+        "successes": 147,
+        "rate": 0.4681528662420382,
+        "ci95": [
+          0.4136786912306543,
+          0.523396883521046
+        ],
+        "split": "unseen"
+      },
+      "mug": {
+        "n": 291,
+        "successes": 263,
+        "rate": 0.9037800687285223,
+        "ci95": [
+          0.8644495282643634,
+          0.9325886101801437
+        ],
+        "split": "unseen"
+      },
+      "dumbbell": {
+        "n": 275,
+        "successes": 69,
+        "rate": 0.2509090909090909,
+        "ci95": [
+          0.2033387115015572,
+          0.30534291993363755
+        ],
+        "split": "unseen"
+      }
+    },
+    "failure_reasons": {
+      "closed_empty": 596,
+      "success": 835,
+      "dropped": 66,
+      "no_lift": 3
+    }
+  },
+  "generalisation_gap_pp": 21.733333333333338,
+  "angle": {
+    "checkpoint": "results/scaling/mujoco/n000512_seed2/best.pt",
+    "angle_error_deg": 43.89244181864638,
+    "angle_error_deg_seen": 45.43306000755434,
+    "angle_error_deg_heldout": 43.34815156028968,
+    "bin_spread": 0.11137771791061468,
+    "n_scored": 226,
+    "n_seen": 59,
+    "n_heldout": 167,
+    "n_skipped_indeterminate": 134,
+    "chance_level_deg": 45.0,
+    "per_category_error_deg": {
+      "box": 49.16195050355242,
+      "capsule": 43.66183702195525,
+      "dumbbell": 39.973193893641565,
+      "ellipsoid": 51.14907930743791,
+      "l_shape": 50.23555694158729,
+      "mug": 41.64618893868648,
+      "t_shape": 40.17250411149244
+    },
+    "per_category_bin_spread": {
+      "box": 0.11107911561664782,
+      "capsule": 0.10771948173642158,
+      "dumbbell": 0.11144921481609345,
+      "ellipsoid": 0.11671457120350429,
+      "l_shape": 0.11110141724348069,
+      "mug": 0.11207294017076493,
+      "t_shape": 0.1137534223496914
+    }
+  }
+}
