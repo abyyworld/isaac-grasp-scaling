@@ -23,6 +23,13 @@ ORIGINAL = {"cnn_unseen": 0.584, "heuristic_unseen": 0.753,
             "cnn_seen": 0.838, "heuristic_seen": 0.883,
             "angle_heldout_deg": 47.2}
 
+BACKEND_NAMES = {"mujoco": "MuJoCo", "isaac": "Isaac Lab"}
+
+
+def backend_name(result: dict) -> str:
+    raw = result.get("dataset", {}).get("backend", "unknown")
+    return BACKEND_NAMES.get(raw, raw)
+
 
 def curve_table(result: dict) -> str:
     lines = [
@@ -56,6 +63,10 @@ def main() -> int:
                         help="a scaling.json; repeat for each arm of the experiment")
     parser.add_argument("--throughput", default=None)
     parser.add_argument("--out", default="docs/results.md")
+    parser.add_argument("--readme", default=None,
+                        help="also fill the RESULTS block in this README")
+    parser.add_argument("--figure", default=None,
+                        help="path to the curve image, as the README should reference it")
     args = parser.parse_args()
 
     sections = [
@@ -71,10 +82,9 @@ def main() -> int:
     for path in args.result:
         result = json.loads(Path(path).read_text())
         dataset = result.get("dataset", {})
-        backend = dataset.get("backend", "unknown")
         config = result.get("config", {})
         sections += [
-            f"## {backend} arm",
+            f"## The {backend_name(result)} arm",
             "",
             f"Dataset `{dataset.get('path', '?')}`: {dataset.get('n_scenes', '?')} scenes, "
             f"{dataset.get('angles_per_scene', '?')} grasps per scene, "
@@ -112,7 +122,88 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(sections))
     print(f"wrote {out}")
+
+    if args.readme:
+        primary = json.loads(Path(args.result[0]).read_text())
+        update_readme(Path(args.readme), primary, args.figure)
+        print(f"updated {args.readme}")
     return 0
+
+
+def readme_block(result: dict, figure: str | None) -> str:
+    """The README's results section, generated from the artefacts.
+
+    Written between markers so the numbers in the README are the numbers in the
+    JSON. A README table maintained by hand drifts from the run that produced
+    it, and the drift is invisible until someone tries to reproduce it.
+    """
+    points = sorted(result["points"], key=lambda p: p["train_samples"])
+    first, last = points[0], points[-1]
+    controls = result.get("controls", {}).get("heuristic", {})
+    dataset = result.get("dataset", {})
+    config = result.get("config", {})
+
+    lines = ["## Results", ""]
+    if figure:
+        lines += [f"![Grasp success and orientation error against training set size]({figure})",
+                  ""]
+
+    lines += [
+        "### The control, re-run unchanged",
+        "",
+        "It does not depend on training data, so it should reproduce the original "
+        "study. This is the first number to read: if it had come out different, "
+        "something in the environment had moved and nothing else here would be "
+        "trustworthy.",
+        "",
+        "| | this run | original study |",
+        "|---|---|---|",
+    ]
+    if controls:
+        lines += [
+            f"| Heuristic, held-out categories | **{controls['unseen']['rate']:.1%}** "
+            f"| {ORIGINAL['heuristic_unseen']:.1%} |",
+            f"| Heuristic, seen categories | {controls['seen']['rate']:.1%} "
+            f"| {ORIGINAL['heuristic_seen']:.1%} |",
+        ]
+    lines += [
+        "",
+        f"### The curve, on {backend_name(result)}-generated data",
+        "",
+        f"Same architecture, same training loop, {config.get('epochs', '?')} epochs at "
+        f"{config.get('input_size') or dataset.get('image_size', '?')} px at every point. "
+        "Training subsets are nested and the validation set is fixed, so a difference "
+        "between points is added data and nothing else.",
+        "",
+        curve_table(result),
+        "",
+        f"n = {config.get('eval_episodes', '?')} evaluation episodes per split, on the "
+        "original held-out scenes. The 95% intervals are about plus or minus 7 points, "
+        "so adjacent points are not individually distinguishable; the trend is the "
+        "readable part.",
+        "",
+        f"Over a {last['train_samples'] / first['train_samples']:.0f}x range in training "
+        f"data, held-out success moved from {first['unseen']['rate']:.1%} to "
+        f"{last['unseen']['rate']:.1%}, against the heuristic's "
+        f"{controls['unseen']['rate']:.1%}. Orientation error on held-out shapes moved "
+        f"from {first['angle']['angle_error_deg_heldout']:.1f} to "
+        f"{last['angle']['angle_error_deg_heldout']:.1f} degrees, where random guessing "
+        "scores 45.",
+        "",
+        "Full tables in [docs/results.md](docs/results.md); the raw numbers are in "
+        "`results/scaling/` as JSON and CSV.",
+    ]
+    return "\n".join(lines)
+
+
+def update_readme(path: Path, result: dict, figure: str | None) -> None:
+    text = path.read_text()
+    start, end = "<!-- RESULTS -->", "<!-- /RESULTS -->"
+    if start not in text or end not in text:
+        raise SystemExit(f"{path} has no {start} / {end} markers to fill")
+    head = text[: text.index(start) + len(start)]
+    tail = text[text.index(end):]
+    path.write_text(f"{head}\n{readme_block(result, figure)}\n{tail}")
 
 
 if __name__ == "__main__":
