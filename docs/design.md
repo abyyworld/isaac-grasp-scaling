@@ -267,7 +267,51 @@ origin, which is why the backend recovers the mount as `root_state_w` minus
 `env_origins`. Being forced to write that convention down explicitly, and to
 decide which side was wrong, is worth more than the test having passed.
 
-## 11. Known limitations
+## 11. Repeated runs, and what they cost the study
+
+Section 8 inferred run-to-run training variance at 2.33 points by subtracting
+the binomial term from the residual about a fitted line. That inference assumes
+the true relationship is log-linear and charges any curvature to noise, and an
+inferred quantity that has never been checked against a direct one is a guess
+with error bars on it. So it was measured: three training seeds at three sizes,
+identical data and identical evaluation scenes, varying only initialisation,
+data order, augmentation draws and the train/validation split.
+
+Doing that at all required a change to the driver. `ScalingConfig.seed` drove
+both the training and the evaluation scenes, so varying it would have moved the
+test set underneath the replicate. There is now a separate `train_seed`.
+
+    grasps   held-out (%)              spread   observed SD
+       384   43.5, 48.1, 46.1             4.6          2.31
+     1,536   44.7, 50.2, 55.7            10.9          5.47
+     6,144   48.4, 47.1, 50.1             3.0          1.51
+
+Pooled over 6 degrees of freedom the training term is **3.29 points**, against
+2.33 inferred. The same order, and higher in the direction expected: every point
+on the published curve was trained with the same seed, so those runs share an
+initialisation stream and their scatter understates what independent runs do.
+
+**A claim was withdrawn here.** On two seeds the numbers read 3.25 points at 384
+grasps against 0.90 at 6,144, and the report said variance shrinks with data,
+which would have meant the flat top of the curve was more trustworthy than the
+scattered bottom. The third seed put the widest spread of all in the middle of
+the range. The report now requires a trend to be monotonic across every size
+before it will name one, instead of comparing the first and last and calling it
+a direction. Comparing two endpoints is not a trend; it is two numbers.
+
+**What this costs the study.** Going from 384 grasps to 12,288, a 32x increase,
+moved held-out success by 6.1 points. Re-running one training moves it by 3.29.
+The entire effect of 32x more data is about 1.8 standard deviations of the noise
+available for free by changing a seed.
+
+That reframes the whole arm. The interesting result is not the curve, it is the
+methodology: a single-seed scaling curve at this scale is mostly measuring its
+own noise, and the fix is repeated runs rather than a larger simulator. It also
+sets the bar for the Isaac Lab arm. Running one seed per size there, however
+many samples it generates, would produce a curve that looks convincing and
+carries almost no information.
+
+## 12. Known limitations
 
 * The Isaac backend has never been executed. See the status banner at the top of
   `isaac_backend.py` and the gate in `scripts/check_setup.py`.

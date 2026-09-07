@@ -80,7 +80,15 @@ names the one that fails.
    numbers are consistent, and that is the point: two significant figures on 89
    trials was never worth the weight it was carrying.
 
-4. **Know which noise you are fighting.** The scatter about the curve is split
+4. **Repeated runs, not a bigger simulator.** Three seeds at three sizes give
+   3.29 points of run-to-run standard deviation from nothing but the seed. The
+   whole 32x increase in data moved held-out success by 6.1 points, so the
+   effect is under two standard deviations of free noise, and a single-seed
+   curve at this scale is mostly measuring itself. Any Isaac Lab arm run with
+   one seed per size will look convincing and mean very little, however many
+   samples it generates.
+
+5. **Know which noise you are fighting.** The scatter about the curve is split
    into its binomial evaluation term and the remainder, which is run-to-run
    training variance. Evaluation noise was dominant at 200 episodes and is not
    at 1,500. Spending on more episodes past that point buys nothing, and the
