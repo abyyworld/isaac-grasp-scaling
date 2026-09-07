@@ -283,12 +283,34 @@ class FakeCameraData:
 
 
 class FakeCamera:
+    """A stub camera that can be told what the scene contains.
+
+    By default it renders a flat table, which is what a misconfigured headless
+    Isaac Sim produces and is therefore worth being the default. Setting
+    ``height_source`` to a callable returning one height per environment makes it
+    render an object of that height, which is what the geometry and camera stages
+    of the setup gate need in order to be exercised at all.
+    """
+
     def __init__(self, num_envs: int, size: int):
         self.data = FakeCameraData(num_envs, size)
         self.updates = 0
+        self.height_source = None
 
     def update(self, dt):
         self.updates += 1
+        if self.height_source is None:
+            return
+        size = self.data.size
+        depth = self.data.output["distance_to_image_plane"]
+        depth[:] = 0.55
+        centre = size // 2
+        half = max(1, size // 8)
+        for env_index, height in enumerate(self.height_source()):
+            if env_index >= depth.shape[0]:
+                break
+            depth[env_index, centre - half:centre + half,
+                  centre - half:centre + half, 0] = 0.55 - float(height)
 
 
 class FakeScene:

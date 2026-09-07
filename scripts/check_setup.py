@@ -134,12 +134,12 @@ def check_isaac_import() -> str:
     return f"isaaclab {getattr(isaaclab, '__version__', 'unknown')}"
 
 
-def check_isaac_launch(num_envs: int) -> str:
+def check_isaac_launch(num_envs: int, device: str = "cuda:0") -> str:
     from isaacgrasp.backends.isaac_backend import IsaacBackend
 
-    backend = IsaacBackend(num_envs=num_envs, image_size=128)
+    backend = IsaacBackend(num_envs=num_envs, image_size=128, device=device)
     _ISAAC["backend"] = backend
-    return f"{num_envs} environments launched headless"
+    return f"{num_envs} environments launched headless on {device}"
 
 
 def check_isaac_reset() -> str:
@@ -222,6 +222,9 @@ def main() -> int:
     parser.add_argument("--num-envs", type=int, default=16,
                         help="environments for the Isaac stages (keep small here)")
     parser.add_argument("--tmp", default="/tmp/isaacgrasp_check")
+    parser.add_argument("--device", default="cuda:0",
+                        help="device for the Isaac stages. Not every machine puts "
+                             "its GPU at index 0, and a rented one often does not")
     args = parser.parse_args()
 
     import os
@@ -243,7 +246,8 @@ def main() -> int:
         print("  Isaac Lab stages. None of these has been executed before; a failure")
         print("  here is expected to be informative rather than surprising.")
         stages.run("isaac:import", check_isaac_import)
-        stages.run("isaac:launch", lambda: check_isaac_launch(args.num_envs))
+        stages.run("isaac:launch",
+                   lambda: check_isaac_launch(args.num_envs, args.device))
         stages.run("isaac:reset", check_isaac_reset)
         stages.run("isaac:camera", check_isaac_camera)
         stages.run("isaac:object geometry", check_isaac_geometry)
