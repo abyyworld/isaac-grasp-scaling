@@ -53,12 +53,17 @@ def curve_table(result: dict) -> str:
 
 
 def control_table(result: dict) -> str:
-    lines = ["| policy | seen | held-out | original study, held-out |", "|---|---|---|---|"]
+    lines = ["| policy | seen | held-out | 95% CI, held-out | original study, held-out |",
+             "|---|---|---|---|---|"]
     for name, control in result.get("controls", {}).items():
         original = ORIGINAL.get(f"{name}_unseen")
-        reference = f"{original:.1%}" if original else "-"
-        lines.append(f"| {name} (re-run unchanged) | {control['seen']['rate']:.1%} "
-                     f"| {control['unseen']['rate']:.1%} | {reference} |")
+        original_n = ORIGINAL.get(f"{name}_unseen_n")
+        reference = (f"{original:.1%} (n={original_n})" if original else "-")
+        held = control["unseen"]
+        lines.append(
+            f"| {name} (re-run unchanged, n={held['n']}) | {control['seen']['rate']:.1%} "
+            f"| {held['rate']:.1%} | {held['ci95'][0]:.1%} to {held['ci95'][1]:.1%} "
+            f"| {reference} |")
     return "\n".join(lines)
 
 
@@ -92,9 +97,11 @@ def main() -> int:
         sections += [
             f"## The {backend_name(result)} arm",
             "",
-            f"Dataset `{dataset.get('path', '?')}`: {dataset.get('n_scenes', '?')} scenes, "
+            f"Dataset `{Path(str(dataset.get('path', '?'))).name}`: "
+            f"{dataset.get('n_scenes', '?')} scenes, "
             f"{dataset.get('angles_per_scene', '?')} grasps per scene, "
-            f"{dataset.get('image_size', '?')} px.",
+            f"{dataset.get('image_size', '?')} px. "
+            "(The name only: the absolute path is whatever machine generated it.)",
             f"Training: {config.get('epochs', '?')} epochs at "
             f"{config.get('input_size') or dataset.get('image_size', '?')} px, "
             f"identical at every point. Evaluation: {config.get('eval_episodes', '?')} "
@@ -102,9 +109,10 @@ def main() -> int:
             "",
             "### The control",
             "",
-            "Re-run unchanged. It does not depend on training data, so it should "
-            "reproduce the original study. If it does not, every other number here "
-            "is suspect.",
+            "Re-run unchanged. It does not depend on training data, so it is the check "
+            "that the environment still is what it was. Read it against the original's "
+            "sample size, not only against its headline: that figure rests on 89 "
+            "held-out trials.",
             "",
             control_table(result),
             "",
