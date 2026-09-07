@@ -37,6 +37,45 @@ def backend_name(result: dict) -> str:
     return BACKEND_NAMES.get(raw, raw)
 
 
+# The best orientation error the predecessor reached on any split, after its
+# contrastive-label fix. A useful target because it is known to be achievable
+# with this architecture rather than being an arbitrary round number.
+ORIGINAL_BEST_ANGLE_DEG = 35.2
+
+
+def _orientation_verdict(trend: dict, last: dict) -> str:
+    """What the orientation trend supports, in doublings of training data."""
+    low, high = trend.get("slope_ci95_pp", [float("nan"), float("nan")])
+    slope = trend.get("slope_per_doubling_pp", float("nan"))
+    current = last["angle"]["angle_error_deg_heldout"]
+    if low != low or high >= 0:
+        return (
+            f"Orientation error on held-out shapes is not distinguishable from flat "
+            f"over this range: {slope:+.2f} degrees per doubling, 95% interval "
+            f"{low:+.2f} to {high:+.2f}.")
+
+    distance = current - ORIGINAL_BEST_ANGLE_DEG
+    fastest = distance / abs(low)
+    typical = distance / abs(slope)
+    return (
+        f"**Orientation error is falling, and this is the one trend the data resolve.** "
+        f"It drops {abs(slope):.2f} degrees per doubling of training data, 95% interval "
+        f"{abs(high):.2f} to {abs(low):.2f}, which excludes zero. More data does improve "
+        f"orientation.\n\n"
+        f"The rate is what settles the question. From {current:.1f} degrees, reaching the "
+        f"{ORIGINAL_BEST_ANGLE_DEG:.1f} degrees the original study achieved on seen "
+        f"categories after its contrastive-label fix would take about {typical:.0f} "
+        f"further doublings at the fitted rate, and about {fastest:.0f} even at the "
+        f"fastest end of the interval. That is between {2 ** fastest:,.0f}x and "
+        f"{2 ** typical:,.0f}x the {last['train_samples']:,} grasps used here: of order "
+        f"{2 ** fastest * last['train_samples'] / 1e6:.1f} million to "
+        f"{2 ** typical * last['train_samples'] / 1e6:,.0f} million labelled grasps. "
+        "The lower end of that is reachable with a GPU simulator. The upper end is not "
+        "an experiment anyone is going to run, and it is the reason to suspect the "
+        "architecture rather than the dataset."
+    )
+
+
 def curve_table(result: dict) -> str:
     lines = [
         "| training scenes | labelled grasps | seen | held-out | gap | angle error (held-out) |",
@@ -269,14 +308,23 @@ def readme_block(result: dict, figure: str | None) -> str:
         f"held-out went from {first['generalisation_gap_pp']:.1f} to "
         f"{last['generalisation_gap_pp']:.1f} points.",
         "",
-        f"Orientation error on held-out shapes stayed within "
+        _orientation_verdict(trends.get("held_out_angle_error", {}), last),
+        "",
+        f"Falling is not the same as good. Held-out orientation error goes from "
+        f"{first['angle']['angle_error_deg_heldout']:.1f} degrees to "
+        f"{last['angle']['angle_error_deg_heldout']:.1f} across the whole 32x range, "
+        f"against the 45 a random guess scores. It never gets more than "
         f"{max(abs(p['angle']['angle_error_deg_heldout'] - 45.0) for p in points):.1f} "
-        f"degrees of the 45 that random guessing scores, at every size measured, and on "
-        f"seen categories it did not improve either "
-        f"({points[0]['angle']['angle_error_deg_seen']:.1f} degrees at the smallest size, "
-        f"{last['angle']['angle_error_deg_seen']:.1f} at the largest). Scored on "
-        f"{last['angle']['n_seen']} seen and {last['angle']['n_heldout']} held-out grasps "
-        "per point, over the elongated objects where an angle is determinate at all.",
+        f"degrees away from chance at any size measured.",
+        "",
+        f"The seen-category figure does not resolve at all "
+        f"({first['angle']['angle_error_deg_seen']:.1f} degrees at the smallest size, "
+        f"{last['angle']['angle_error_deg_seen']:.1f} at the largest, wandering in "
+        f"between). It is scored on only {last['angle']['n_seen']} grasps per point "
+        f"against {last['angle']['n_heldout']} for held-out, because the determinacy "
+        "filter removes the rotationally symmetric shapes and most of the training "
+        "categories are symmetric. That scatter is the measurement, not the model, and "
+        "it is why the held-out figure is the one quoted.",
         "",
         f"The sharper measurement is the **bin spread**: the range of predicted grasp "
         f"quality across the twelve gripper angles at the pixel the network chose. It "
@@ -317,6 +365,8 @@ def readme_block(result: dict, figure: str | None) -> str:
         "The run-to-run noise is larger than the effect being measured, which is the "
         "honest reason this curve is hard to resolve and not a matter of needing a "
         "bigger simulator.",
+        "",
+        "### What this arm does not settle",
         "",
         f"**It tops out below the study it follows up.** The largest point here is "
         f"{last['train_samples']:,} labelled grasps. The original trained on roughly "

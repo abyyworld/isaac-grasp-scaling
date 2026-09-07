@@ -50,24 +50,31 @@ Same architecture, same training loop, 12 epochs at 112 px at every point. Train
 | 512 | 1,536 | 69.8% | 44.7% | 25.1 pp | 44.6 deg |
 | 1,024 | 3,072 | 77.9% | 51.9% | 26.1 pp | 43.6 deg |
 | 2,048 | 6,144 | 69.4% | 48.4% | 21.0 pp | 45.1 deg |
+| 4,096 | 12,288 | 76.9% | 49.6% | 27.3 pp | 42.6 deg |
 
 n = 1500 evaluation episodes per split, on the original held-out scenes, giving a 95% interval of about plus or minus 2.5 points on each. The trend is the readable part, not any single pair of adjacent points.
 
 ### What the curve says
 
-Over a 16x range in training data, fitting rate against log2(samples):
+Over a 32x range in training data, fitting rate against log2(samples):
 
 | quantity | slope per doubling | 95% interval | r-squared |
 |---|---|---|---|
-| Seen-category success | +3.17 pp | -2.84 to +9.18 | 0.48 |
-| Held-out success | +1.31 pp | -1.70 to +4.33 | 0.39 |
-| Held-out orientation error | -0.60 deg | -1.68 to +0.48 | 0.51 |
+| Seen-category success | +2.96 pp | -0.49 to +6.41 | 0.59 |
+| Held-out success | +1.06 pp | -0.70 to +2.83 | 0.41 |
+| Held-out orientation error | -0.74 deg | -1.39 to -0.08 | 0.71 |
 
-Seen-category success rises. Held-out success is **consistent with flat**: its 95% interval runs from -1.70 to +4.33 points per doubling, which contains zero. The useful half of that is the upper end. Whatever gain more data buys on unseen shapes, over this range it is **at most 4.33 points per doubling**, and closing the 31 point distance to the heuristic at that rate would take about 7 further doublings. Held-out success moved from 43.5% to 48.4% against the heuristic's 79.5%, and the gap between seen and held-out went from 14.2 to 21.0 points.
+Seen-category success rises. Held-out success is **consistent with flat**: its 95% interval runs from -0.70 to +2.83 points per doubling, which contains zero. The useful half of that is the upper end. Whatever gain more data buys on unseen shapes, over this range it is **at most 2.83 points per doubling**, and closing the 30 point distance to the heuristic at that rate would take about 11 further doublings. Held-out success moved from 43.5% to 49.6% against the heuristic's 79.5%, and the gap between seen and held-out went from 14.2 to 27.3 points.
 
-Orientation error on held-out shapes stayed within 1.8 degrees of the 45 that random guessing scores, at every size measured, and on seen categories it did not improve either (43.7 degrees at the smallest size, 47.8 at the largest). Scored on 59 seen and 167 held-out grasps per point, over the elongated objects where an angle is determinate at all.
+**Orientation error is falling, and this is the one trend the data resolve.** It drops 0.74 degrees per doubling of training data, 95% interval 0.08 to 1.39, which excludes zero. More data does improve orientation.
 
-The sharper measurement is the **bin spread**: the range of predicted grasp quality across the twelve gripper angles at the pixel the network chose. It falls from 0.41 to 0.05 across the curve. The first value is an undertrained network's noise rather than real angle sensitivity, so the reading is that the network's quality estimate becomes progressively **less** sensitive to how the gripper is turned as it sees more data, settling near the 0.070 the original measured at roughly 27,000 samples. Predicting the angle-marginal success rate is a minimum of this loss, and more data finds it more reliably.
+The rate is what settles the question. From 42.6 degrees, reaching the 35.2 degrees the original study achieved on seen categories after its contrastive-label fix would take about 10 further doublings at the fitted rate, and about 5 even at the fastest end of the interval. That is between 39x and 1,008x the 12,288 grasps used here: of order 0.5 million to 12 million labelled grasps. The lower end of that is reachable with a GPU simulator. The upper end is not an experiment anyone is going to run, and it is the reason to suspect the architecture rather than the dataset.
+
+Falling is not the same as good. Held-out orientation error goes from 46.5 degrees to 42.6 across the whole 32x range, against the 45 a random guess scores. It never gets more than 2.4 degrees away from chance at any size measured.
+
+The seen-category figure does not resolve at all (43.7 degrees at the smallest size, 51.0 at the largest, wandering in between). It is scored on only 59 grasps per point against 167 for held-out, because the determinacy filter removes the rotationally symmetric shapes and most of the training categories are symmetric. That scatter is the measurement, not the model, and it is why the held-out figure is the one quoted.
+
+The sharper measurement is the **bin spread**: the range of predicted grasp quality across the twelve gripper angles at the pixel the network chose. It falls from 0.41 to 0.07 across the curve. The first value is an undertrained network's noise rather than real angle sensitivity, so the reading is that the network's quality estimate becomes progressively **less** sensitive to how the gripper is turned as it sees more data, settling near the 0.070 the original measured at roughly 27,000 samples. Predicting the angle-marginal success rate is a minimum of this loss, and more data finds it more reliably.
 
 ### Where the scatter comes from
 
@@ -76,14 +83,16 @@ Two things move a point off the line, and they call for different fixes.
 | source | standard deviation |
 |---|---|
 | Evaluation, binomial at n=1500 per split | 1.29 pp |
-| Training, at a fixed dataset size | 2.70 pp |
-| Total scatter about the fit | 2.99 pp |
+| Training, at a fixed dataset size | 2.33 pp |
+| Total scatter about the fit | 2.66 pp |
 
-**Training noise dominates.** The evaluation term is known exactly from the episode count; the training term is what is left, and covers initialisation, data order and augmentation draws at a fixed dataset size. At 200 episodes per split the evaluation term was 3.52 points and dominated; at 1500 it no longer does, so more episodes would now be wasted money and the next spend belongs on repeated runs or more sizes.
+**Training noise dominates.** The evaluation term is known exactly from the episode count; the training term is what is left, and covers initialisation, data order and augmentation draws at a fixed dataset size. At 200 episodes per split the evaluation term was 3.53 points and dominated; at 1500 it no longer does, so more episodes would now be wasted money and the next spend belongs on repeated runs or more sizes.
 
-It is worth putting that next to the trend: retraining the same size moves held-out success by about 2.7 points, and doubling the data moves it by 1.31. The run-to-run noise is larger than the effect being measured, which is the honest reason this curve is hard to resolve and not a matter of needing a bigger simulator.
+It is worth putting that next to the trend: retraining the same size moves held-out success by about 2.3 points, and doubling the data moves it by 1.06. The run-to-run noise is larger than the effect being measured, which is the honest reason this curve is hard to resolve and not a matter of needing a bigger simulator.
 
-**It tops out below the study it follows up.** The largest point here is 6,144 labelled grasps. The original trained on roughly 27,000 and reported 58.4% held-out, which is above every point on this curve. So the curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 16x range the held-out gap did not close and orientation did not leave chance.
+### What this arm does not settle
+
+**It tops out below the study it follows up.** The largest point here is 12,288 labelled grasps. The original trained on roughly 27,000 and reported 58.4% held-out, which is above every point on this curve. So the curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 32x range the held-out gap did not close and orientation did not leave chance.
 
 Reaching the original's scale, and the one to two orders of magnitude beyond it that the Isaac Lab port exists to make affordable, is the experiment this arm sets up rather than the one it performs. The Isaac backend has not been run.
 
@@ -99,7 +108,7 @@ This matters more than usual here, so it is at the top rather than buried.
 | | status |
 |---|---|
 | MuJoCo control arm: collect, train, evaluate, curve | **run, numbers below** |
-| Heuristic baseline, re-run unchanged | **run, reproduces the original** |
+| Heuristic baseline, re-run unchanged | **run** at n=1500; 79.5% held-out, consistent with but more precise than the original's 75.3% at n=89 |
 | Object catalogue translation to USD | **tested** (48 tests, no GPU needed) |
 | Oracle grasp, success criterion, batched collector | **tested against the originals** |
 | Isaac Lab backend, its own logic | **executed** against a stub Isaac API |
