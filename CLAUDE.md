@@ -46,6 +46,7 @@ src/isaacgrasp/
 scripts/           one CLI per stage; all take --help
   check_setup.py     verify by running; --isaac adds six GPU stages
   reevaluate.py      re-score finished checkpoints at a new episode count
+  seed_variance.py   what a re-run does, from repeated training seeds
   push_results.py    get artefacts off a throwaway machine, token-safely
 tests/fakes/       stub Isaac Lab API, so the backend's logic can be executed
 docs/design.md     decisions, the confound, the fallback plan

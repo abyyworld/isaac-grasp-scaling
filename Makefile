@@ -19,10 +19,12 @@ ANGLES   ?= 3
 DATA     ?= data/mj18k
 OUT      ?= results/scaling/mujoco
 SIZES    ?= 128 256 512 1024 2048
+SEEDS      ?= 1 2
+SEED_SIZES ?= 128 512 2048
 EPOCHS   ?= 10
 INPUT    ?= 96
 
-.PHONY: help install assets check collect scaling plot throughput test lint clean
+.PHONY: help install assets check collect scaling seeds variance plot throughput test lint clean
 
 help:
 	@echo "make install     create $(VENV) and install the package"
@@ -30,6 +32,8 @@ help:
 	@echo "make check       verify the install by running it (add ISAAC=1 on a GPU box)"
 	@echo "make collect     generate a dataset      (BACKEND=$(BACKEND) SCENES=$(SCENES))"
 	@echo "make scaling     train the curve         (DATA=$(DATA) SIZES='$(SIZES)')"
+	@echo "make seeds       re-run training at other seeds (SEEDS='1 2')"
+	@echo "make variance    measure run-to-run variance from those replicates"
 	@echo "make plot        redraw the curve from a finished run"
 	@echo "make throughput  compare samples/hour between backends"
 	@echo "make test        run the test suite"
@@ -57,6 +61,16 @@ collect:
 scaling:
 	$(PY) scripts/run_scaling.py --data $(DATA) --out $(OUT) --sizes $(SIZES) \
 		--epochs $(EPOCHS) --input-size $(INPUT)
+
+seeds:
+	@for s in $(SEEDS); do \
+		echo "=== training seed $$s ==="; \
+		$(PY) scripts/run_scaling.py --data $(DATA) --out $(OUT) --sizes $(SEED_SIZES) \
+			--epochs $(EPOCHS) --input-size $(INPUT) --train-seed $$s || exit 1; \
+	done
+
+variance:
+	$(PY) scripts/seed_variance.py --out $(OUT)
 
 plot:
 	$(PY) scripts/plot_scaling.py --result $(OUT)/scaling.json

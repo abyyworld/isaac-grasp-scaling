@@ -112,6 +112,8 @@ def main() -> int:
     parser.add_argument("--result", action="append", required=True,
                         help="a scaling.json; repeat for each arm of the experiment")
     parser.add_argument("--throughput", default=None)
+    parser.add_argument("--seed-variance", default=None,
+                        help="results/seed_variance.json, from scripts/seed_variance.py")
     parser.add_argument("--out", default="docs/results.md")
     parser.add_argument("--readme", default=None,
                         help="also fill the RESULTS block in this README")
@@ -178,12 +180,74 @@ def main() -> int:
 
     if args.readme:
         primary = json.loads(Path(args.result[0]).read_text())
-        update_readme(Path(args.readme), primary, args.figure)
+        variance = (json.loads(Path(args.seed_variance).read_text())
+                    if args.seed_variance and Path(args.seed_variance).exists() else None)
+        update_readme(Path(args.readme), primary, args.figure, variance)
         print(f"updated {args.readme}")
     return 0
 
 
-def readme_block(result: dict, figure: str | None) -> str:
+def seed_variance_section(variance: dict) -> list[str]:
+    """The direct measurement of what a re-run does, when replicates exist."""
+    per_size = variance.get("per_size", [])
+    pooled = variance.get("pooled")
+    if not per_size or not pooled:
+        return []
+
+    inferred = variance.get("inferred_from_curve_sd_pp")
+    lines = [
+        "### What a re-run does, measured directly",
+        "",
+        "The decomposition above infers training variance by subtracting the binomial "
+        "term from the scatter about a fitted line, which assumes the true relationship "
+        "is log-linear and charges any curvature to noise. These runs assume nothing: "
+        "same dataset size, same evaluation scenes, only the training seed changed, so "
+        "initialisation, data order, augmentation draws and the train/validation split "
+        "differ and nothing else does.",
+        "",
+        "| training grasps | seeds | held-out (%) | spread | observed SD | training SD |",
+        "|---|---|---|---|---|---|",
+    ]
+    for row in per_size:
+        rates = ", ".join(f"{r:.1f}" for r in row["rates_pp"])
+        lines.append(
+            f"| {row['train_samples']:,} | {row['n_seeds']} | {rates} "
+            f"| {row['range_pp']:.1f} pp | {row['observed_sd_pp']:.2f} pp "
+            f"| {row['training_sd_pp']:.2f} pp |")
+
+    lines += [
+        "",
+        f"Pooled over {pooled['degrees_of_freedom']} degrees of freedom: "
+        f"{pooled['observed_sd_pp']:.2f} points observed, "
+        f"{pooled['evaluation_sd_pp']:.2f} of it the binomial evaluation floor, "
+        f"**{pooled['training_sd_pp']:.2f} points of training variance**.",
+    ]
+    if inferred is not None:
+        agreement = ("agrees with" if abs(pooled["training_sd_pp"] - inferred) < 1.0
+                     else "differs from")
+        lines.append(
+            f"That {agreement} the {inferred:.2f} points the curve's residual inferred. "
+            "The inference rested on the relationship being log-linear; the measurement "
+            "did not need it to be.")
+
+    smallest, largest = per_size[0], per_size[-1]
+    if largest["training_sd_pp"] < smallest["training_sd_pp"]:
+        lines += [
+            "",
+            f"Run-to-run variance appears to shrink with data: "
+            f"{smallest['observed_sd_pp']:.2f} points at "
+            f"{smallest['train_samples']:,} grasps against "
+            f"{largest['observed_sd_pp']:.2f} at {largest['train_samples']:,}. If that "
+            "holds, the large end of the curve is more trustworthy than the small end, "
+            "and the flatness at the top is more meaningful than the scatter at the "
+            "bottom.",
+        ]
+    lines.append("")
+    return lines
+
+
+def readme_block(result: dict, figure: str | None,
+                 variance: dict | None = None) -> str:
     """The README's results section, generated from the artefacts.
 
     Written between markers so the numbers in the README are the numbers in the
@@ -366,6 +430,7 @@ def readme_block(result: dict, figure: str | None) -> str:
         "honest reason this curve is hard to resolve and not a matter of needing a "
         "bigger simulator.",
         "",
+        *seed_variance_section(variance or {}),
         "### What this arm does not settle",
         "",
         f"**It tops out below the study it follows up.** The largest point here is "
@@ -386,14 +451,15 @@ def readme_block(result: dict, figure: str | None) -> str:
     return "\n".join(lines)
 
 
-def update_readme(path: Path, result: dict, figure: str | None) -> None:
+def update_readme(path: Path, result: dict, figure: str | None,
+                  variance: dict | None = None) -> None:
     text = path.read_text()
     start, end = "<!-- RESULTS -->", "<!-- /RESULTS -->"
     if start not in text or end not in text:
         raise SystemExit(f"{path} has no {start} / {end} markers to fill")
     head = text[: text.index(start) + len(start)]
     tail = text[text.index(end):]
-    path.write_text(f"{head}\n{readme_block(result, figure)}\n{tail}")
+    path.write_text(f"{head}\n{readme_block(result, figure, variance)}\n{tail}")
 
 
 if __name__ == "__main__":

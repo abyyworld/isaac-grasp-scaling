@@ -90,6 +90,21 @@ Two things move a point off the line, and they call for different fixes.
 
 It is worth putting that next to the trend: retraining the same size moves held-out success by about 2.3 points, and doubling the data moves it by 1.06. The run-to-run noise is larger than the effect being measured, which is the honest reason this curve is hard to resolve and not a matter of needing a bigger simulator.
 
+### What a re-run does, measured directly
+
+The decomposition above infers training variance by subtracting the binomial term from the scatter about a fitted line, which assumes the true relationship is log-linear and charges any curvature to noise. These runs assume nothing: same dataset size, same evaluation scenes, only the training seed changed, so initialisation, data order, augmentation draws and the train/validation split differ and nothing else does.
+
+| training grasps | seeds | held-out (%) | spread | observed SD | training SD |
+|---|---|---|---|---|---|
+| 384 | 2 | 43.5, 48.1 | 4.6 pp | 3.25 pp | 2.99 pp |
+| 1,536 | 2 | 44.7, 50.2 | 5.5 pp | 3.87 pp | 3.64 pp |
+| 6,144 | 2 | 48.4, 47.1 | 1.3 pp | 0.90 pp | 0.00 pp |
+
+Pooled over 3 degrees of freedom: 2.96 points observed, 1.29 of it the binomial evaluation floor, **2.67 points of training variance**.
+That agrees with the 2.33 points the curve's residual inferred. The inference rested on the relationship being log-linear; the measurement did not need it to be.
+
+Run-to-run variance appears to shrink with data: 3.25 points at 384 grasps against 0.90 at 6,144. If that holds, the large end of the curve is more trustworthy than the small end, and the flatness at the top is more meaningful than the scatter at the bottom.
+
 ### What this arm does not settle
 
 **It tops out below the study it follows up.** The largest point here is 12,288 labelled grasps. The original trained on roughly 27,000 and reported 58.4% held-out, which is above every point on this curve. So the curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 32x range the held-out gap did not close and orientation did not leave chance.
