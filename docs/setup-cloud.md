@@ -112,3 +112,38 @@ python scripts/run_scaling.py --data data/isaac600k --out results/scaling/isaac 
 cycle, then raise it until GPU memory or the render budget stops you, and record
 what you used: the throughput comparison is only meaningful next to the batch
 size that produced it.
+
+---
+
+## Getting results off a throwaway machine
+
+Both Kaggle and a rented instance disappear when you stop paying attention to
+them, so results have to leave before the machine does.
+`scripts/push_results.py` commits the artefacts and pushes them to a branch:
+
+```bash
+GITHUB_TOKEN=... python scripts/push_results.py \
+    --paths results/scaling/kaggle --branch kaggle-results
+```
+
+**The token.** Create a **fine-grained** token at
+<https://github.com/settings/personal-access-tokens>, scoped to only this
+repository with **Contents: Read and write**, and give it a short expiry. On
+Kaggle, store it under **Add-ons, Secrets** as `GITHUB_TOKEN` and attach it to
+the notebook. Never paste it into a cell: a public notebook publishes its own
+source and its output.
+
+The script reads the token from the environment rather than from an argument, so
+it stays out of process listings and shell history; passes it to git through a
+credential helper rather than a remote URL, so it is never written into
+`.git/config`; and scrubs anything token-shaped out of git's output before
+printing, so an error message that echoes a rewritten URL does not leak it
+either. `tests/test_push_results.py` covers all three, and sweeps every tracked
+file for credential-shaped strings.
+
+It pushes to a branch rather than the default branch. A notebook should propose
+results, not rewrite history.
+
+**If a token is ever exposed**, including by pasting it into a chat or a
+terminal someone else can read, revoke it at the link above. Rotation is cheap;
+a leaked write-scoped token on a public repository is not.

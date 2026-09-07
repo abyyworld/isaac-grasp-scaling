@@ -130,6 +130,37 @@
   },
   "generalisation_gap_pp": 16.499999999999996,
   "angle": {
+    "checkpoint": "/home/user/isaac-grasp-scaling/results/scaling/mujoco/n000128/best.pt",
+    "angle_error_deg": 45.788905300948734,
+    "angle_error_deg_seen": 43.73472269672002,
+    "angle_error_deg_heldout": 46.51463448447865,
+    "bin_spread": 0.41318728830830187,
+    "n_scored": 226,
+    "n_seen": 59,
+    "n_heldout": 167,
+    "n_skipped_indeterminate": 134,
+    "chance_level_deg": 45.0,
+    "per_category_error_deg": {
+      "box": 35.55910134264948,
+      "capsule": 47.61814283990352,
+      "dumbbell": 49.25722853888219,
+      "ellipsoid": 40.27136026446703,
+      "l_shape": 46.14377410645618,
+      "mug": 47.51888842873075,
+      "t_shape": 44.231219852347486
+    },
+    "per_category_bin_spread": {
+      "box": 0.3724580885548341,
+      "capsule": 0.4398123726248741,
+      "dumbbell": 0.42641673497855664,
+      "ellipsoid": 0.4688398241996765,
+      "l_shape": 0.40246566813439133,
+      "mug": 0.3970763012766838,
+      "t_shape": 0.40977254062891005
+    },
+    "episodes_per_category": 40
+  },
+  "angle_low_n": {
     "checkpoint": "results/scaling/mujoco/n000128/best.pt",
     "angle_error_deg": 45.93436894282267,
     "angle_error_deg_seen": 46.861337409214755,
