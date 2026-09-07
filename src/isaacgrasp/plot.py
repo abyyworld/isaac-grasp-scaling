@@ -50,15 +50,55 @@ def _style(axis) -> None:
     axis.tick_params(colors=INK_MUTED, labelsize=9)
 
 
-def _label_end(axis, x, y, text, colour) -> None:
-    """Direct label at the right end of a series.
+def _log_x(axis, x: list[int]) -> None:
+    """Log x axis ticked at the measured sizes, not at powers of ten.
+
+    Matplotlib's default log minor ticks render as "4 x 10^2 6 x 10^2 ..." and
+    run into each other at this figure width. The sizes actually measured are
+    the only x values that mean anything here, so they are the ticks, written as
+    plain numbers.
+
+    The padding matters too: without it the first and last markers sit on the
+    spines, where they collide with the reference-line labels at the left and
+    the direct labels at the right.
+    """
+    axis.set_xscale("log")
+    axis.set_xlim(x[0] / 1.6, x[-1] * 1.6)
+    axis.set_xticks(x)
+    axis.set_xticklabels([f"{value:,}" for value in x])
+    axis.tick_params(axis="x", which="minor", length=0)
+    axis.set_xticks([], minor=True)
+
+
+def _label_end(axis, x, y, text, colour, dy: float = 0.0) -> None:
+    """Direct label just past the right end of a series.
 
     Required rather than decorative: the control colour sits below 3:1 contrast
     on this surface, so identity has to be carried by something other than hue.
+    ``dy`` nudges labels apart when two series finish close together.
     """
-    axis.annotate(text, xy=(x, y), xytext=(6, 0), textcoords="offset points",
+    axis.annotate(text, xy=(x, y), xytext=(7, dy), textcoords="offset points",
                   color=colour, fontsize=9, fontweight="bold",
                   va="center", ha="left", clip_on=False)
+
+
+def _label_reference(axis, x, y, text, colour, above: bool = True) -> None:
+    """Label a horizontal reference line at the left edge.
+
+    At the left, where no series has started yet, rather than at the right,
+    where the series labels are. A reference line labelled on top of the marks
+    it is a reference for is not a label, it is a collision.
+    """
+    axis.annotate(text, xy=(x, y), xytext=(2, 5 if above else -12),
+                  textcoords="offset points", color=colour, fontsize=8.5,
+                  fontweight="bold" if above else "normal", ha="left")
+
+
+def _separate(a: float, b: float, span: float) -> tuple[float, float]:
+    """Vertical nudges in points for two labels that may overlap."""
+    if abs(a - b) > 0.06 * span:
+        return 0.0, 0.0
+    return (7.0, -7.0) if a >= b else (-7.0, 7.0)
 
 
 def plot_scaling(result: dict[str, Any], out_path: Path | str,
@@ -81,7 +121,7 @@ def plot_scaling(result: dict[str, Any], out_path: Path | str,
 
     # -- Panel A: success rate --------------------------------------------- #
     _style(left)
-    left.set_xscale("log")
+    _log_x(left, x)
     left.fill_between(x, seen_lo, seen_hi, color=SEEN, alpha=0.13, linewidth=0)
     left.fill_between(x, held_lo, held_hi, color=HELD_OUT, alpha=0.13, linewidth=0)
     left.plot(x, seen, color=SEEN, linewidth=2, marker="o", markersize=5,
@@ -93,16 +133,18 @@ def plot_scaling(result: dict[str, Any], out_path: Path | str,
     if control is not None:
         left.axhline(100.0 * control, color=CONTROL, linewidth=2, linestyle="--",
                      label="Heuristic control, held-out")
-        _label_end(left, x[-1], 100.0 * control, f"heuristic {100 * control:.1f}%", CONTROL)
+        _label_reference(left, x[0], 100.0 * control,
+                         f"heuristic control {100 * control:.1f}%", CONTROL)
 
     left.axhline(100.0 * ORIGINAL_CNN_HELD_OUT, color=INK_MUTED, linewidth=1,
                  linestyle=":", alpha=0.8)
-    left.annotate(f"original study, held-out {100 * ORIGINAL_CNN_HELD_OUT:.1f}%",
-                  xy=(x[0], 100.0 * ORIGINAL_CNN_HELD_OUT), xytext=(0, 5),
-                  textcoords="offset points", color=INK_MUTED, fontsize=8)
+    _label_reference(left, x[0], 100.0 * ORIGINAL_CNN_HELD_OUT,
+                     f"original study, held-out {100 * ORIGINAL_CNN_HELD_OUT:.1f}%",
+                     INK_MUTED, above=False)
 
-    _label_end(left, x[-1], held[-1], f"{held[-1]:.1f}%", HELD_OUT)
-    _label_end(left, x[-1], seen[-1], f"{seen[-1]:.1f}%", SEEN)
+    dy_held, dy_seen = _separate(held[-1], seen[-1], 100.0)
+    _label_end(left, x[-1], held[-1], f"{held[-1]:.1f}%", HELD_OUT, dy_held)
+    _label_end(left, x[-1], seen[-1], f"{seen[-1]:.1f}%", SEEN, dy_seen)
     left.set_xlabel("training set size (labelled grasps, log scale)", color=INK_MUTED, fontsize=9)
     left.set_ylabel("grasp success rate (%)", color=INK_MUTED, fontsize=9)
     left.set_title("Does more data close the gap?", color=INK, fontsize=11,
@@ -112,7 +154,7 @@ def plot_scaling(result: dict[str, Any], out_path: Path | str,
 
     # -- Panel B: orientation error ---------------------------------------- #
     _style(right)
-    right.set_xscale("log")
+    _log_x(right, x)
     angle_seen = [p["angle"]["angle_error_deg_seen"] for p in points]
     angle_held = [p["angle"]["angle_error_deg_heldout"] for p in points]
     right.plot(x, angle_seen, color=SEEN, linewidth=2, marker="o", markersize=5,
@@ -120,22 +162,27 @@ def plot_scaling(result: dict[str, Any], out_path: Path | str,
     right.plot(x, angle_held, color=HELD_OUT, linewidth=2, marker="o", markersize=5,
                markeredgecolor=SURFACE, markeredgewidth=1.2, label="held-out categories")
     right.axhline(CHANCE_ANGLE_DEG, color=INK_MUTED, linewidth=1.2, linestyle="--")
-    right.annotate("random guessing, 45 deg", xy=(x[0], CHANCE_ANGLE_DEG), xytext=(0, 4),
-                   textcoords="offset points", color=INK_MUTED, fontsize=8)
-    _label_end(right, x[-1], angle_held[-1], f"{angle_held[-1]:.0f} deg", HELD_OUT)
-    _label_end(right, x[-1], angle_seen[-1], f"{angle_seen[-1]:.0f} deg", SEEN)
+    # Below the line: the curves start above 45 degrees and end below it, so the
+    # space under the line at the left is the only reliably empty corner.
+    _label_reference(right, x[0], CHANCE_ANGLE_DEG, "random guessing, 45 deg",
+                     INK_MUTED, above=False)
+    ceiling = max(60.0, max(angle_seen + angle_held) + 8)
+    dy_held, dy_seen = _separate(angle_held[-1], angle_seen[-1], ceiling)
+    _label_end(right, x[-1], angle_held[-1], f"{angle_held[-1]:.0f} deg", HELD_OUT, dy_held)
+    _label_end(right, x[-1], angle_seen[-1], f"{angle_seen[-1]:.0f} deg", SEEN, dy_seen)
     right.set_xlabel("training set size (labelled grasps, log scale)", color=INK_MUTED, fontsize=9)
     right.set_ylabel("mean orientation error (degrees)", color=INK_MUTED, fontsize=9)
     right.set_title("Does orientation improve with data?", color=INK, fontsize=11,
                     fontweight="bold", loc="left")
-    right.set_ylim(0, max(60.0, max(angle_seen + angle_held) + 8))
+    right.set_ylim(0, ceiling)
     right.legend(frameon=False, fontsize=8.5, loc="lower left", labelcolor=INK_MUTED)
 
     dataset = result.get("dataset", {})
+    backend = {"mujoco": "MuJoCo", "isaac": "Isaac Lab"}.get(
+        dataset.get("backend", ""), dataset.get("backend", "unknown"))
     heading = title or (
-        f"Grasp success against training set size "
-        f"({dataset.get('backend', 'unknown')} data, "
-        f"{result['config']['eval_episodes']} evaluation episodes per split)")
+        f"Grasp success against training set size: {backend}-generated data, "
+        f"{result['config']['eval_episodes']} evaluation episodes per split")
     figure.suptitle(heading, color=INK, fontsize=12, fontweight="bold", x=0.07, ha="left")
 
     out_path = Path(out_path)
