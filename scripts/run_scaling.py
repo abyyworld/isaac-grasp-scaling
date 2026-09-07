@@ -42,7 +42,9 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--eval-episodes", type=int, default=200)
     parser.add_argument("--eval-workers", type=int, default=4)
-    parser.add_argument("--angle-episodes", type=int, default=10)
+    parser.add_argument("--angle-episodes", type=int, default=40,
+                        help="episodes per category for the orientation metric. "
+                             "Below about 40 the seen split is too thin to read")
     parser.add_argument("--label", default="")
     args = parser.parse_args()
 

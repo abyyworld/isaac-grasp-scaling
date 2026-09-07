@@ -43,11 +43,11 @@ Same architecture, same training loop, 12 epochs at 112 px at every point. Train
 
 | training scenes | labelled grasps | seen | held-out | gap | angle error (held-out) |
 |---|---|---|---|---|---|
-| 128 | 384 | 58.5% | 42.0% | 16.5 pp | 45.6 deg |
-| 256 | 768 | 70.0% | 48.0% | 22.0 pp | 45.6 deg |
-| 512 | 1,536 | 70.5% | 42.0% | 28.5 pp | 45.2 deg |
-| 1,024 | 3,072 | 78.0% | 52.0% | 26.0 pp | 43.9 deg |
-| 2,048 | 6,144 | 72.0% | 44.0% | 28.0 pp | 44.2 deg |
+| 128 | 384 | 58.5% | 42.0% | 16.5 pp | 46.5 deg |
+| 256 | 768 | 70.0% | 48.0% | 22.0 pp | 46.8 deg |
+| 512 | 1,536 | 70.5% | 42.0% | 28.5 pp | 44.6 deg |
+| 1,024 | 3,072 | 78.0% | 52.0% | 26.0 pp | 43.6 deg |
+| 2,048 | 6,144 | 72.0% | 44.0% | 28.0 pp | 45.1 deg |
 
 n = 200 evaluation episodes per split, on the original held-out scenes. The 95% intervals are about plus or minus 7 points, so adjacent points are not individually distinguishable; the trend is the readable part.
 
@@ -59,11 +59,13 @@ Over a 16x range in training data, fitting rate against log2(samples):
 |---|---|---|
 | Seen-category success | +3.50 pp | 0.61 |
 | Held-out success | +0.80 pp | 0.09 |
-| Held-out orientation error | -0.46 deg | 0.80 |
+| Held-out orientation error | -0.60 deg | 0.51 |
 
 Seen-category success rises. Held-out success does not resolve: the fitted slope explains 9% of the scatter, so over this range it is not distinguishable from flat. It moved from 42.0% to 44.0% against the heuristic's 75.5%, and the gap between seen and held-out went from 16.5 to 28.0 points.
 
-Orientation error on held-out shapes stayed within 1.1 degrees of the 45 that random guessing scores, at every size measured.
+Orientation error on held-out shapes stayed within 1.8 degrees of the 45 that random guessing scores, at every size measured, and on seen categories it did not improve either (43.7 degrees at the smallest size, 47.8 at the largest). Scored on 59 seen and 167 held-out grasps per point, over the elongated objects where an angle is determinate at all.
+
+The sharper measurement is the **bin spread**: the range of predicted grasp quality across the twelve gripper angles at the pixel the network chose. It falls from 0.41 to 0.05 across the curve. The first value is an undertrained network's noise rather than real angle sensitivity, so the reading is that the network's quality estimate becomes progressively **less** sensitive to how the gripper is turned as it sees more data, settling near the 0.070 the original measured at roughly 27,000 samples. Predicting the angle-marginal success rate is a minimum of this loss, and more data finds it more reliably.
 
 ### What this arm does not settle
 

@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 # The predecessor study's published held-out numbers.
 ORIGINAL = {"cnn_unseen": 0.584, "heuristic_unseen": 0.753,
             "cnn_seen": 0.838, "heuristic_seen": 0.883,
-            "angle_heldout_deg": 47.2}
+            "angle_heldout_deg": 47.2, "bin_spread": 0.070}
 
 BACKEND_NAMES = {"mujoco": "MuJoCo", "isaac": "Isaac Lab"}
 
@@ -218,7 +218,23 @@ def readme_block(result: dict, figure: str | None) -> str:
         "",
         f"Orientation error on held-out shapes stayed within "
         f"{max(abs(p['angle']['angle_error_deg_heldout'] - 45.0) for p in points):.1f} "
-        "degrees of the 45 that random guessing scores, at every size measured.",
+        f"degrees of the 45 that random guessing scores, at every size measured, and on "
+        f"seen categories it did not improve either "
+        f"({points[0]['angle']['angle_error_deg_seen']:.1f} degrees at the smallest size, "
+        f"{last['angle']['angle_error_deg_seen']:.1f} at the largest). Scored on "
+        f"{last['angle']['n_seen']} seen and {last['angle']['n_heldout']} held-out grasps "
+        "per point, over the elongated objects where an angle is determinate at all.",
+        "",
+        f"The sharper measurement is the **bin spread**: the range of predicted grasp "
+        f"quality across the twelve gripper angles at the pixel the network chose. It "
+        f"falls from {points[0]['angle']['bin_spread']:.2f} to "
+        f"{last['angle']['bin_spread']:.2f} across the curve. The first value is an "
+        f"undertrained network's noise rather than real angle sensitivity, so the reading "
+        f"is that the network's quality estimate becomes progressively **less** sensitive "
+        f"to how the gripper is turned as it sees more data, settling near the "
+        f"{ORIGINAL['bin_spread']:.3f} the original measured at roughly 27,000 samples. "
+        "Predicting the angle-marginal success rate is a minimum of this loss, and more "
+        "data finds it more reliably.",
         "",
         "### What this arm does not settle",
         "",

@@ -68,8 +68,15 @@ class ScalingConfig:
     eval_workers: int = 4
     eval_offset: int = EVAL_EPISODE_OFFSET
     # Orientation measurement. Episodes per category, so the total is nine times
-    # this before the determinacy filter.
-    angle_episodes: int = 10
+    # this before the determinacy filter removes the rotationally symmetric ones.
+    #
+    # 40 rather than the upstream script's 10. At 10, the filter leaves 15 scored
+    # samples on the seen split, and the first pass of this curve produced a seen
+    # orientation error that wandered by three degrees between adjacent points on
+    # that basis alone. Orientation is the question this project exists to answer,
+    # so it is not the number to economise on: 40 gives 59 seen and 167 held-out,
+    # at roughly 570 seconds per point on a CPU.
+    angle_episodes: int = 40
     # The control. Re-run once, not per point, because it has no training data.
     controls: tuple[str, ...] = ("heuristic",)
     label: str = ""
