@@ -1,0 +1,21 @@
+{
+  "records": [
+    {
+      "backend": "mujoco",
+      "hardware": "4 vCPU (no GPU), 4 worker processes",
+      "n_samples": 18000,
+      "n_scenes": 6000,
+      "elapsed_seconds": 1082.7134118180002,
+      "elapsed_hours": 0.30075372550500007,
+      "angles_per_scene": 3,
+      "image_size": 224,
+      "batch_size": 1,
+      "workers": 4,
+      "samples_per_hour": 59849.63268460244,
+      "scenes_per_hour": 19949.877561534144,
+      "speedup_vs_slowest": 1.0
+    }
+  ],
+  "baseline_samples_per_hour": 59849.63268460244,
+  "caveat": "Rates are per machine, not per unit of hardware. The two backends were measured on different machines because that is how each one is actually run, so this ratio mixes a software difference with a hardware one. The hardware is recorded per row."
+}
