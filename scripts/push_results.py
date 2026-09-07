@@ -33,7 +33,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_REPO = Path(__file__).resolve().parents[1]
 # Committed as the repository's owner, per the project's convention.
 GIT_NAME = "abyyworld"
 GIT_EMAIL = "annolieberto@gmail.com"
@@ -55,9 +55,11 @@ def redact(text: str, secret: str | None = None) -> str:
     return TOKEN_PATTERN.sub("[REDACTED]", text)
 
 
-def run(args: list[str], secret: str | None = None, **kwargs) -> subprocess.CompletedProcess:
+def run(args: list[str], secret: str | None = None, repo: Path | None = None,
+        **kwargs) -> subprocess.CompletedProcess:
     """Run a git command, scrubbing its output whether it succeeds or fails."""
-    done = subprocess.run(args, cwd=ROOT, capture_output=True, text=True, **kwargs)
+    done = subprocess.run(args, cwd=repo or DEFAULT_REPO, capture_output=True,
+                          text=True, **kwargs)
     if done.returncode != 0:
         raise SystemExit(
             f"command failed: {' '.join(args[:2])}\n"
@@ -75,6 +77,44 @@ def credential_helper() -> str:
     return ('!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f')
 
 
+def push(paths: list[str], branch: str, token: str, repo: Path | None = None,
+         message: str | None = None, remote: str | None = None) -> list[str]:
+    """Commit ``paths`` on ``branch`` and push. Returns the files committed.
+
+    Split out of ``main`` so it can be exercised against a throwaway repository
+    rather than only against this one. The mechanism a notebook depends on to get
+    results off a machine that is about to disappear should not be tested only by
+    being used for real.
+    """
+    repo = Path(repo) if repo else DEFAULT_REPO
+
+    missing = [p for p in paths if not (repo / p).exists()]
+    if missing:
+        raise SystemExit(f"nothing to push, these paths do not exist: {missing}")
+
+    run(["git", "config", "user.name", GIT_NAME], repo=repo)
+    run(["git", "config", "user.email", GIT_EMAIL], repo=repo)
+    run(["git", "config", "credential.helper", credential_helper()], repo=repo)
+    if remote:
+        run(["git", "remote", "set-url", "origin",
+             f"https://github.com/{remote}.git"], repo=repo)
+
+    run(["git", "checkout", "-B", branch], token, repo=repo)
+    run(["git", "add", "--", *paths], token, repo=repo)
+
+    staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=repo,
+                            capture_output=True, text=True).stdout.split()
+    if not staged:
+        return []
+
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    run(["git", "commit", "-m", message or f"Add run artefacts from Kaggle, {stamp}"],
+        token, repo=repo)
+    run(["git", "push", "-u", "origin", branch], token, repo=repo,
+        env={**os.environ, "GITHUB_TOKEN": token})
+    return staged
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -86,6 +126,8 @@ def main() -> int:
     parser.add_argument("--message", default=None)
     parser.add_argument("--remote", default=None,
                         help="owner/repo. Defaults to the existing origin")
+    parser.add_argument("--repo", default=None,
+                        help="repository to operate on. Defaults to this checkout")
     args = parser.parse_args()
 
     token = os.environ.get("GITHUB_TOKEN", "").strip()
@@ -96,32 +138,11 @@ def main() -> int:
             "notebook. Do not paste the token into a cell: a public notebook "
             "publishes its own source.")
 
-    missing = [p for p in args.paths if not (ROOT / p).exists()]
-    if missing:
-        raise SystemExit(f"nothing to push, these paths do not exist: {missing}")
-
-    run(["git", "config", "user.name", GIT_NAME])
-    run(["git", "config", "user.email", GIT_EMAIL])
-    run(["git", "config", "credential.helper", credential_helper()])
-    if args.remote:
-        run(["git", "remote", "set-url", "origin",
-             f"https://github.com/{args.remote}.git"])
-
-    run(["git", "checkout", "-B", args.branch], token)
-    run(["git", "add", "--", *args.paths], token)
-
-    staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=ROOT,
-                            capture_output=True, text=True).stdout.split()
+    staged = push(args.paths, args.branch, token, repo=args.repo,
+                  message=args.message, remote=args.remote)
     if not staged:
         print("nothing changed, so nothing pushed")
         return 0
-
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    message = args.message or f"Add run artefacts from Kaggle, {stamp}"
-    run(["git", "commit", "-m", message], token)
-
-    environment = {**os.environ, "GITHUB_TOKEN": token}
-    run(["git", "push", "-u", "origin", args.branch], token, env=environment)
 
     print(f"pushed {len(staged)} files to '{args.branch}':")
     for name in staged[:20]:

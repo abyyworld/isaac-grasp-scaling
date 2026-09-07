@@ -93,3 +93,98 @@ def test_no_real_credential_is_committed_anywhere():
             if name != "tests/test_push_results.py":
                 offenders.append(f"{name}: {match.group()[:12]}...")
     assert not offenders, "credential-shaped strings in tracked files:\n" + "\n".join(offenders)
+
+
+# --------------------------------------------------------------------------- #
+# The push itself, against a throwaway repository.
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture
+def throwaway(tmp_path):
+    """A bare 'remote' and a clone of it, standing in for GitHub."""
+    remote = tmp_path / "remote.git"
+    clone = tmp_path / "clone"
+    subprocess.run(["git", "init", "--bare", "-q", "-b", "main", str(remote)], check=True)
+    subprocess.run(["git", "clone", "-q", str(remote), str(clone)], check=True)
+    for name, value in (("user.name", "test"), ("user.email", "test@example.com")):
+        subprocess.run(["git", "-C", str(clone), "config", name, value], check=True)
+    (clone / "README.md").write_text("seed\n")
+    subprocess.run(["git", "-C", str(clone), "add", "README.md"], check=True)
+    subprocess.run(["git", "-C", str(clone), "commit", "-qm", "seed"], check=True)
+    subprocess.run(["git", "-C", str(clone), "push", "-q", "origin", "main"], check=True)
+    return remote, clone
+
+
+def _branches(remote):
+    out = subprocess.run(["git", "-C", str(remote), "branch", "--format=%(refname:short)"],
+                         capture_output=True, text=True, check=True).stdout
+    return out.split()
+
+
+def test_results_reach_the_remote_on_their_own_branch(throwaway):
+    remote, clone = throwaway
+    results = clone / "results" / "scaling" / "kaggle"
+    results.mkdir(parents=True)
+    (results / "scaling.csv").write_text("train_samples,unseen_rate\n6144,0.484\n")
+    (results / "scaling.json").write_text('{"points": []}')
+
+    staged = push_results.push(["results/scaling/kaggle"], "kaggle-results",
+                               FAKE_FINE_GRAINED, repo=clone, message="results")
+
+    assert sorted(staged) == ["results/scaling/kaggle/scaling.csv",
+                              "results/scaling/kaggle/scaling.json"]
+    assert "kaggle-results" in _branches(remote)
+    assert "main" in _branches(remote), "the default branch must be left alone"
+
+
+def test_the_default_branch_is_not_touched(throwaway):
+    """A notebook proposes results; it does not rewrite history."""
+    remote, clone = throwaway
+    before = subprocess.run(["git", "-C", str(remote), "rev-parse", "main"],
+                            capture_output=True, text=True, check=True).stdout
+    (clone / "results").mkdir()
+    (clone / "results" / "out.json").write_text("{}")
+    push_results.push(["results"], "kaggle-results", FAKE_CLASSIC, repo=clone)
+    after = subprocess.run(["git", "-C", str(remote), "rev-parse", "main"],
+                           capture_output=True, text=True, check=True).stdout
+    assert before == after
+
+
+def test_the_token_is_not_written_into_git_config(throwaway):
+    """A token in .git/config survives the session and shows in git remote -v."""
+    _remote, clone = throwaway
+    (clone / "results").mkdir()
+    (clone / "results" / "out.json").write_text("{}")
+    push_results.push(["results"], "kaggle-results", FAKE_FINE_GRAINED, repo=clone)
+
+    config = (clone / ".git" / "config").read_text()
+    assert FAKE_FINE_GRAINED not in config
+    assert "github_pat_" not in config
+    assert "$GITHUB_TOKEN" in config, "the helper reads the environment instead"
+
+
+def test_nothing_to_push_is_not_an_error(throwaway):
+    _remote, clone = throwaway
+    (clone / "results").mkdir()
+    (clone / "results" / "out.json").write_text("{}")
+    push_results.push(["results"], "kaggle-results", FAKE_CLASSIC, repo=clone)
+    again = push_results.push(["results"], "kaggle-results", FAKE_CLASSIC, repo=clone)
+    assert again == []
+
+
+def test_a_missing_results_path_fails_before_touching_git(throwaway):
+    _remote, clone = throwaway
+    with pytest.raises(SystemExit, match="do not exist"):
+        push_results.push(["results/never-made"], "kaggle-results", FAKE_CLASSIC,
+                          repo=clone)
+
+
+def test_the_commit_is_attributed_to_the_repository_owner(throwaway):
+    _remote, clone = throwaway
+    (clone / "results").mkdir()
+    (clone / "results" / "out.json").write_text("{}")
+    push_results.push(["results"], "kaggle-results", FAKE_CLASSIC, repo=clone)
+    author = subprocess.run(["git", "-C", str(clone), "log", "-1", "--format=%an <%ae>"],
+                            capture_output=True, text=True, check=True).stdout.strip()
+    assert author == f"{push_results.GIT_NAME} <{push_results.GIT_EMAIL}>"
