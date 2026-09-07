@@ -166,6 +166,9 @@ def readme_block(result: dict, figure: str | None) -> str:
             f"| Heuristic, seen categories | {controls['seen']['rate']:.1%} "
             f"| {ORIGINAL['heuristic_seen']:.1%} |",
         ]
+    reading = result.get("reading", {})
+    trends = reading.get("trends", {})
+
     lines += [
         "",
         f"### The curve, on {backend_name(result)}-generated data",
@@ -182,13 +185,54 @@ def readme_block(result: dict, figure: str | None) -> str:
         "so adjacent points are not individually distinguishable; the trend is the "
         "readable part.",
         "",
+        "### What the curve says",
+        "",
         f"Over a {last['train_samples'] / first['train_samples']:.0f}x range in training "
-        f"data, held-out success moved from {first['unseen']['rate']:.1%} to "
-        f"{last['unseen']['rate']:.1%}, against the heuristic's "
-        f"{controls['unseen']['rate']:.1%}. Orientation error on held-out shapes moved "
-        f"from {first['angle']['angle_error_deg_heldout']:.1f} to "
-        f"{last['angle']['angle_error_deg_heldout']:.1f} degrees, where random guessing "
-        "scores 45.",
+        f"data, fitting rate against log2(samples):",
+        "",
+        "| quantity | slope per doubling | r-squared |",
+        "|---|---|---|",
+    ]
+    for key, label in (("seen_success", "Seen-category success"),
+                       ("held_out_success", "Held-out success"),
+                       ("held_out_angle_error", "Held-out orientation error")):
+        trend = trends.get(key)
+        if not trend:
+            continue
+        unit = "deg" if "angle" in key else "pp"
+        value = trend["slope_per_doubling_pp"]
+        if "angle" in key:
+            value = value  # already in degrees, the fit was run on degrees / 100
+        lines.append(f"| {label} | {value:+.2f} {unit} | {trend['r_squared']:.2f} |")
+
+    held_trend = trends.get("held_out_success", {})
+    lines += [
+        "",
+        f"Seen-category success rises. Held-out success does not resolve: the fitted "
+        f"slope explains {held_trend.get('r_squared', float('nan')):.0%} of the scatter, "
+        f"so over this range it is not distinguishable from flat. It moved from "
+        f"{first['unseen']['rate']:.1%} to {last['unseen']['rate']:.1%} against the "
+        f"heuristic's {controls['unseen']['rate']:.1%}, and the gap between seen and "
+        f"held-out went from {first['generalisation_gap_pp']:.1f} to "
+        f"{last['generalisation_gap_pp']:.1f} points.",
+        "",
+        f"Orientation error on held-out shapes stayed within "
+        f"{max(abs(p['angle']['angle_error_deg_heldout'] - 45.0) for p in points):.1f} "
+        "degrees of the 45 that random guessing scores, at every size measured.",
+        "",
+        "### What this arm does not settle",
+        "",
+        f"**It tops out below the study it follows up.** The largest point here is "
+        f"{last['train_samples']:,} labelled grasps. The original trained on roughly "
+        f"27,000 and reported {ORIGINAL['cnn_unseen']:.1%} held-out, which is above every "
+        f"point on this curve. So the curve evidently continues upward past where this arm "
+        f"reached, and nothing here shows that more data cannot help. What it shows is "
+        f"that across a {last['train_samples'] / first['train_samples']:.0f}x range the "
+        f"held-out gap did not close and orientation did not leave chance.",
+        "",
+        "Reaching the original's scale, and the one to two orders of magnitude beyond it "
+        "that the Isaac Lab port exists to make affordable, is the experiment this arm "
+        "sets up rather than the one it performs. The Isaac backend has not been run.",
         "",
         "Full tables in [docs/results.md](docs/results.md); the raw numbers are in "
         "`results/scaling/` as JSON and CSV.",

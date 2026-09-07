@@ -24,6 +24,54 @@ sharper claim than the original made.
 ---
 
 <!-- RESULTS -->
+## Results
+
+![Grasp success and orientation error against training set size](media/scaling_curve.png)
+
+### The control, re-run unchanged
+
+It does not depend on training data, so it should reproduce the original study. This is the first number to read: if it had come out different, something in the environment had moved and nothing else here would be trustworthy.
+
+| | this run | original study |
+|---|---|---|
+| Heuristic, held-out categories | **75.5%** | 75.3% |
+| Heuristic, seen categories | 90.5% | 88.3% |
+
+### The curve, on MuJoCo-generated data
+
+Same architecture, same training loop, 12 epochs at 112 px at every point. Training subsets are nested and the validation set is fixed, so a difference between points is added data and nothing else.
+
+| training scenes | labelled grasps | seen | held-out | gap | angle error (held-out) |
+|---|---|---|---|---|---|
+| 128 | 384 | 58.5% | 42.0% | 16.5 pp | 45.6 deg |
+| 256 | 768 | 70.0% | 48.0% | 22.0 pp | 45.6 deg |
+| 512 | 1,536 | 70.5% | 42.0% | 28.5 pp | 45.2 deg |
+| 1,024 | 3,072 | 78.0% | 52.0% | 26.0 pp | 43.9 deg |
+| 2,048 | 6,144 | 72.0% | 44.0% | 28.0 pp | 44.2 deg |
+
+n = 200 evaluation episodes per split, on the original held-out scenes. The 95% intervals are about plus or minus 7 points, so adjacent points are not individually distinguishable; the trend is the readable part.
+
+### What the curve says
+
+Over a 16x range in training data, fitting rate against log2(samples):
+
+| quantity | slope per doubling | r-squared |
+|---|---|---|
+| Seen-category success | +3.50 pp | 0.61 |
+| Held-out success | +0.80 pp | 0.09 |
+| Held-out orientation error | -0.46 deg | 0.80 |
+
+Seen-category success rises. Held-out success does not resolve: the fitted slope explains 9% of the scatter, so over this range it is not distinguishable from flat. It moved from 42.0% to 44.0% against the heuristic's 75.5%, and the gap between seen and held-out went from 16.5 to 28.0 points.
+
+Orientation error on held-out shapes stayed within 1.1 degrees of the 45 that random guessing scores, at every size measured.
+
+### What this arm does not settle
+
+**It tops out below the study it follows up.** The largest point here is 6,144 labelled grasps. The original trained on roughly 27,000 and reported 58.4% held-out, which is above every point on this curve. So the curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 16x range the held-out gap did not close and orientation did not leave chance.
+
+Reaching the original's scale, and the one to two orders of magnitude beyond it that the Isaac Lab port exists to make affordable, is the experiment this arm sets up rather than the one it performs. The Isaac backend has not been run.
+
+Full tables in [docs/results.md](docs/results.md); the raw numbers are in `results/scaling/` as JSON and CSV.
 <!-- /RESULTS -->
 
 ---

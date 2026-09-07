@@ -172,3 +172,32 @@ def test_read_curve_labels_the_extrapolation(result):
     assert "Extrapolated" in extrapolation["note"]
     assert "not a measurement" in extrapolation["note"].lower()
     assert extrapolation["projected_samples"] > 6144
+
+
+def test_a_poorly_supported_slope_is_not_extrapolated():
+    """A slope that explains almost none of the scatter must not be inverted.
+
+    This is the case the real five-point curve hit: a positive fitted slope with
+    an r-squared of 0.09, which inverted to a projection of 2.7e14 samples. A
+    confident-looking number derived from noise is worse than no number.
+    """
+    from isaacgrasp.scaling import fit_log_trend, read_curve, samples_to_reach
+
+    noisy = fit_log_trend([384, 768, 1536, 3072, 6144],
+                          [0.42, 0.48, 0.42, 0.52, 0.44])
+    assert 0 < noisy["slope_per_doubling_pp"] < 2
+    assert noisy["r_squared"] < 0.5
+    assert samples_to_reach(noisy, 0.755) == float("inf")
+
+    reading = read_curve({
+        "points": [
+            {"train_samples": n, "seen": {"rate": 0.7}, "unseen": {"rate": r},
+             "angle": {"angle_error_deg_heldout": 45.0}}
+            for n, r in zip([384, 768, 1536, 3072, 6144],
+                            [0.42, 0.48, 0.42, 0.52, 0.44], strict=True)],
+        "controls": {"heuristic": {"unseen": {"rate": 0.755}}},
+    })
+    extrapolation = reading["extrapolation"]
+    assert extrapolation["projected_samples"] is None
+    assert "not distinguishable from flat" in extrapolation["note"]
+    assert "not evidence that the curve is flat" in extrapolation["note"]

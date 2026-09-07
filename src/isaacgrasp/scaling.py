@@ -194,7 +194,10 @@ def run_scaling(cfg: ScalingConfig) -> dict[str, Any]:
         "config": asdict(cfg),
         "dataset": {
             "path": cfg.data,
-            "backend": dataset_meta.get("backend", "unknown"),
+            # A dataset with no backend key was written by simgrasp's own
+            # collector, which is the MuJoCo environment by construction. The
+            # batched collector here records the key explicitly.
+            "backend": dataset_meta.get("backend", "mujoco"),
             "n_scenes": dataset_meta.get("n_scenes", dataset_meta.get("n_episodes")),
             "angles_per_scene": dataset_meta.get("angles_per_scene"),
             "image_size": dataset_meta.get("image_size"),
@@ -270,6 +273,12 @@ def fit_log_trend(samples: list[int], rates: list[float]) -> dict[str, float]:
     }
 
 
+# Below this, the fitted slope is not distinguishable from flat given the scatter,
+# and inverting it produces a number with no meaning. Five points each carrying a
+# 95% interval of about seven points can easily fit a slope of the wrong sign.
+MIN_R_SQUARED_FOR_PROJECTION = 0.5
+
+
 def samples_to_reach(trend: dict[str, float], target_rate: float) -> float:
     """Training set size at which the fitted trend would reach ``target_rate``.
 
@@ -280,10 +289,16 @@ def samples_to_reach(trend: dict[str, float], target_rate: float) -> float:
     data" into a quantity someone can decide about, and it should never be
     quoted without the word extrapolation attached.
 
-    Returns ``inf`` when the fitted slope is flat or negative.
+    Returns ``inf`` when the fitted slope is flat, negative, or too poorly
+    supported to invert. A slope that explains almost none of the scatter is
+    noise, and extrapolating noise across ten orders of magnitude produces a
+    confident-looking number that means nothing at all.
     """
     slope = trend["slope_per_doubling_pp"]
+    r_squared = trend.get("r_squared")
     if not slope or slope <= 0:
+        return float("inf")
+    if r_squared is None or r_squared != r_squared or r_squared < MIN_R_SQUARED_FOR_PROJECTION:
         return float("inf")
     doublings = (100.0 * target_rate - trend["intercept_pp"]) / slope
     return float(2.0 ** doublings)
@@ -303,15 +318,24 @@ def read_curve(result: dict[str, Any]) -> dict[str, Any]:
 
     control = result.get("controls", {}).get("heuristic", {}).get("unseen")
     if control:
-        projected = samples_to_reach(trends["held_out_success"], control["rate"])
+        trend = trends["held_out_success"]
+        projected = samples_to_reach(trend, control["rate"])
+        reachable = projected != float("inf")
         out["extrapolation"] = {
-            "note": ("Extrapolated from a log-linear fit over the measured range. "
-                     "Not a measurement, and success rates are bounded above so the "
-                     "fit cannot hold indefinitely."),
             "target": "heuristic control, held-out",
             "target_rate": control["rate"],
-            "projected_samples": projected,
-            "times_the_measured_maximum": (projected / samples[-1]
-                                           if projected != float("inf") else None),
+            "projected_samples": projected if reachable else None,
+            "times_the_measured_maximum": projected / samples[-1] if reachable else None,
+            "note": (
+                "Extrapolated from a log-linear fit over the measured range. Not a "
+                "measurement, and success rates are bounded above so the fit cannot "
+                "hold indefinitely."
+                if reachable else
+                f"No projection. The fitted held-out slope explains "
+                f"{trend['r_squared']:.0%} of the scatter over {trend['n_points']} "
+                f"points, which is not enough to invert: within this range the trend "
+                f"is not distinguishable from flat. That is a statement about what "
+                f"this arm can resolve, not evidence that the curve is flat."
+            ),
         }
     return out
