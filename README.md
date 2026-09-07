@@ -102,15 +102,23 @@ This matters more than usual here, so it is at the top rather than buried.
 | Heuristic baseline, re-run unchanged | **run, reproduces the original** |
 | Object catalogue translation to USD | **tested** (48 tests, no GPU needed) |
 | Oracle grasp, success criterion, batched collector | **tested against the originals** |
-| Isaac Lab backend, in contact with the simulator | **never executed** |
+| Isaac Lab backend, its own logic | **executed** against a stub Isaac API |
+| Isaac Lab backend, in contact with the real simulator | **never executed** |
 
-124 tests, all passing without a GPU.
+156 tests, all passing without a GPU.
 
 The Isaac Lab backend was written on a machine with no NVIDIA GPU, where Isaac
-Sim cannot be installed. Everything about the port that can be checked without
-one is checked and passes; what remains unverified is the code's contact with
-the simulator. `src/isaacgrasp/backends/isaac_backend.py` carries that status
-banner in its own docstring, and a test fails if the banner is removed.
+Sim cannot be installed. `src/isaacgrasp/backends/isaac_backend.py` carries that
+status banner in its own docstring, and a test fails if the banner is removed.
+
+Those are two different doubts and they are worth separating.
+`tests/fakes/isaac.py` supplies stub `isaaclab`, `isaacsim`, `omni.usd` and
+`pxr` modules, and 26 tests drive the backend against them. That does not
+validate the real API: the stubs were written from the same understanding that
+wrote the backend, so a shared misunderstanding survives both. It does mean the
+backend's own arithmetic has been run and checked, including the pieces that
+fail silently rather than loudly, such as the 103.4 mm offset between the grasp
+point and the hand body.
 
 `scripts/check_setup.py --isaac` is the gate. It exercises the backend in six
 named stages and reports which one fails, because the useful question on a fresh

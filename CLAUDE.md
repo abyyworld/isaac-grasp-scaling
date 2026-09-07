@@ -44,6 +44,10 @@ src/isaacgrasp/
     isaac_objects.py   catalogue translation; pure geometry, fully tested
 
 scripts/           one CLI per stage; all take --help
+  check_setup.py     verify by running; --isaac adds six GPU stages
+  reevaluate.py      re-score finished checkpoints at a new episode count
+  push_results.py    get artefacts off a throwaway machine, token-safely
+tests/fakes/       stub Isaac Lab API, so the backend's logic can be executed
 docs/design.md     decisions, the confound, the fallback plan
 docs/setup-cloud.md  which GPU to rent, and what runs free
 results/           committed JSON and CSV
@@ -68,9 +72,19 @@ names the one that fails.
 2. **Re-measure after every fix.** A correctness change is not free until it has
    been re-benchmarked.
 3. **When a headline number will not reproduce, withdraw it.** Do not reconcile
-   it with a story. The heuristic control exists to catch exactly this: it does
-   not depend on training data, so if it stops reproducing the original 75.3%,
-   something moved and every other number here is suspect.
+   it with a story. This already happened once here. The heuristic control was
+   published as reproducing the original at 75.5% against 75.3%; re-measured on
+   1,500 episodes instead of 200 it is 79.5%, and the agreement was a
+   small-sample coincidence. The claim was withdrawn, not explained away. Both
+   numbers are consistent, and that is the point: two significant figures on 89
+   trials was never worth the weight it was carrying.
+
+4. **Know which noise you are fighting.** The scatter about the curve is split
+   into its binomial evaluation term and the remainder, which is run-to-run
+   training variance. Evaluation noise was dominant at 200 episodes and is not
+   at 1,500. Spending on more episodes past that point buys nothing, and the
+   number to beat is 2.7 points of training variance against 1.3 points per
+   doubling of data.
 
 ## What is unfinished
 

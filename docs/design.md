@@ -168,7 +168,96 @@ alone is not enough: torch loads Triton lazily, so the clash just moves.
 Both were found by executing, not by reading. That is the habit this project
 inherited on purpose.
 
-## 8. Known limitations
+## 8. What the scatter is made of, and what that changed
+
+The first pass of this curve evaluated each point on 200 episodes per split. The
+fitted held-out slope came out at +0.80 points per doubling with an r-squared of
+0.09 and a 95% interval running from -4.0 to +5.6. That bounds nothing: it is
+consistent with the curve falling, and with it rising fast enough to reach the
+control almost immediately.
+
+An r-squared says the fit is bad. It does not say what the data rule out, and
+with a null result that is the only interesting part, so the fit now carries the
+slope's standard error and a t interval. The report reads the interval.
+
+**Then the points were re-measured rather than the conclusion rewritten.**
+Evaluation is cheap next to training, because it reuses checkpoints that already
+exist, so `scripts/reevaluate.py` re-scored every point at 1,500 episodes per
+split. That took the interval on each point from about plus or minus 7 points to
+plus or minus 2.5.
+
+Two things came out of that, and neither was the expected one.
+
+**The control moved.** The heuristic on 1,500 held-out episodes gives 79.5%,
+not the 75.5% measured on 200. The earlier agreement with the predecessor's
+published 75.3% was a coincidence of two small samples. They are consistent, and
+75.3% rests on 89 trials whose interval spans roughly 65% to 83%, but they are
+not the same number and the more precise one is the bar. The claim that the
+control "reproduced the original" was the headline reassurance of this
+repository and it was withdrawn rather than reconciled.
+
+**The bottleneck moved.** With the evaluation term shrunk, the points still
+scatter about the fit by 2.99 points. The binomial term at n=1500 accounts for
+1.29 of that. Variances add, so the remainder, 2.70 points, is the training run
+itself: initialisation, data order, augmentation draws, at a fixed dataset size.
+
+That single number reorganises the experiment:
+
+* Retraining the same size moves held-out success by about 2.7 points. Doubling
+  the data moves it by 1.3. **The run-to-run noise is larger than the effect
+  being measured.**
+* More evaluation episodes are now wasted money. The next spend belongs on
+  repeated seeds at the same sizes, or on more sizes.
+* It is a property of this training setup, not of the simulator. A larger
+  simulator does not fix it, which matters because the Isaac Lab port is
+  precisely an argument for a larger simulator.
+
+`isaacgrasp.scaling.decompose_scatter` computes the split rather than asserting
+it, and reports which term dominates.
+
+## 9. A 4.5x speedup that was pure waste
+
+Evaluation runs one MuJoCo environment per worker process. Each worker imports
+torch, and torch sizes its intra-op thread pool to the whole machine, so four
+workers each claimed four cores: sixteen threads over four cores, all of them
+context-switching.
+
+Pinning one thread per worker for the duration of an evaluation takes it from
+1.12 seconds per episode to 0.25, measured over the same 40 episodes with
+byte-identical results (42.5% both ways). That is the only reason 1,500-episode
+evaluation was affordable at all.
+
+Training is deliberately left alone. There the work is one process with a large
+batch, and intra-op parallelism is worth having.
+
+The measurement itself needed two attempts. The first benchmark ran the
+evaluation under `python -c`, which has no `__main__` guard, and multiprocessing
+with the spawn start method hung rather than failing. That is worth writing down
+because the symptom, a process at zero CPU with no output, looks nothing like
+its cause.
+
+## 10. Executing the unverifiable
+
+The Isaac Lab backend cannot be run without an RTX GPU, and until
+`tests/fakes/isaac.py` existed, not one line of it had been executed by
+anything. The stub modules do not fix that. They cannot: they were written from
+the same understanding of the Isaac Lab API that wrote the backend, so a shared
+misunderstanding survives both, and `scripts/check_setup.py --isaac` on a real
+machine remains the only thing that settles it.
+
+What they do is separate two kinds of doubt that were previously tangled. The
+Isaac API binding is still unverified. Everything on this side of the boundary
+is not: the TCP-to-hand-body offset, the world-to-base-frame conversion, the
+per-environment ordering of a batch, the prim scaling, the mass and friction,
+the joint addressing, the depth-to-height path, the outcome rule.
+
+The harness earned itself on its first run, by failing. The stub was the side
+that was wrong: `root_state_w` is a world pose and carries the environment
+origin, which is why the backend recovers the mount as `root_state_w` minus
+`env_origins`. Being forced to write that convention down explicitly, and to
+decide which side was wrong, is worth more than the test having passed.
+
+## 11. Known limitations
 
 * The Isaac backend has never been executed. See the status banner at the top of
   `isaac_backend.py` and the gate in `scripts/check_setup.py`.
