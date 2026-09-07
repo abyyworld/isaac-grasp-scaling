@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# Generated data / runs.
+#
+# Anchored with a leading slash so the pattern matches only the directory at the
+# repository root. An unanchored "data/" in the predecessor repository also
+# matched src/simgrasp/data/ and silently excluded that package from every
+# commit, leaving the published repository unable to import itself. See
+# tests/test_repo_integrity.py, which fails if any source file becomes ignored.
+/data/
+/runs/
+/outputs/
+
+# Large binary artefacts. Results themselves are committed as JSON and CSV.
+*.npy
+*.npz
+*.pt
+*.ckpt
+
+MUJOCO_LOG.TXT
+.DS_Store
+.simgrasp_gl_backend
