@@ -33,7 +33,9 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -43,6 +45,37 @@ from simgrasp.training import TrainConfig, train
 
 from .angle import measure_angle_error
 from .parity import manifest, require_parity
+
+
+@contextmanager
+def single_threaded_torch():
+    """Pin torch to one thread per process for the duration of an evaluation.
+
+    Evaluation runs one MuJoCo environment per worker process, and each worker
+    imports torch, which by default sizes its thread pool to the whole machine.
+    Four workers each claiming four cores is 16 threads fighting over 4, and the
+    contention costs more than the parallelism buys: measured at 1.12 seconds per
+    episode against 0.25 with one thread per worker, a 4.5x difference, for
+    byte-identical results.
+
+    The variables are read by OpenMP and MKL at import, and evaluation workers are
+    spawned rather than forked, so setting them here reaches the children.
+
+    Training is deliberately left alone: there the batch is large enough that
+    intra-op parallelism in one process is worth having.
+    """
+    keys = ("OMP_NUM_THREADS", "MKL_NUM_THREADS")
+    previous = {k: os.environ.get(k) for k in keys}
+    for key in keys:
+        os.environ[key] = "1"
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 @dataclass
@@ -103,10 +136,11 @@ def _train_one(cfg: ScalingConfig, size: int, run_dir: Path) -> dict[str, Any]:
 def _evaluate_one(cfg: ScalingConfig, checkpoint: Path, run_dir: Path) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for split in ("seen", "unseen"):
-        summary = evaluate_policy(
-            "cnn", n_episodes=cfg.eval_episodes, split=split, workers=cfg.eval_workers,
-            base_seed=cfg.seed, episode_offset=cfg.eval_offset,
-            policy_kwargs={"checkpoint": str(checkpoint)}, progress=False)
+        with single_threaded_torch():
+            summary = evaluate_policy(
+                "cnn", n_episodes=cfg.eval_episodes, split=split, workers=cfg.eval_workers,
+                base_seed=cfg.seed, episode_offset=cfg.eval_offset,
+                policy_kwargs={"checkpoint": str(checkpoint)}, progress=False)
         save_summary(summary, run_dir / f"eval_{split}.json", keep_records=False)
         out[split] = {"rate": summary["success_rate"], "ci95": summary["ci95"],
                       "n": summary["n"], "by_category": summary["by_category"],
@@ -176,9 +210,11 @@ def run_controls(cfg: ScalingConfig) -> dict[str, Any]:
         controls[name] = {}
         for split in ("seen", "unseen"):
             print(f"[scaling] control {name} / {split}", flush=True)
-            summary = evaluate_policy(
-                name, n_episodes=cfg.eval_episodes, split=split, workers=cfg.eval_workers,
-                base_seed=cfg.seed, episode_offset=cfg.eval_offset, progress=False)
+            with single_threaded_torch():
+                summary = evaluate_policy(
+                    name, n_episodes=cfg.eval_episodes, split=split,
+                    workers=cfg.eval_workers, base_seed=cfg.seed,
+                    episode_offset=cfg.eval_offset, progress=False)
             save_summary(summary, out_dir / f"{name}_{split}.json", keep_records=False)
             controls[name][split] = {"rate": summary["success_rate"],
                                      "ci95": summary["ci95"], "n": summary["n"],
@@ -270,14 +306,49 @@ def fit_log_trend(samples: list[int], rates: list[float]) -> dict[str, float]:
     y = 100.0 * np.asarray(rates, dtype=float)
     slope, intercept = np.polyfit(x, y, 1)
     predicted = slope * x + intercept
-    ss_residual = float(np.sum((y - predicted) ** 2))
+    residuals = y - predicted
+    ss_residual = float(np.sum(residuals ** 2))
     ss_total = float(np.sum((y - y.mean()) ** 2))
+
+    # Standard error of the slope, and a 95% interval from the t distribution.
+    #
+    # This is what turns "the trend did not resolve" into a bound. A slope whose
+    # interval is [-0.4, +2.0] says the data are consistent with flat AND rule
+    # out anything steeper than 2 points per doubling, which is a far more useful
+    # statement than an r-squared alone, and it is the one this study can
+    # actually support.
+    degrees_of_freedom = len(samples) - 2
+    slope_stderr = float("nan")
+    slope_ci: list[float] = [float("nan"), float("nan")]
+    if degrees_of_freedom > 0:
+        variance_x = float(np.sum((x - x.mean()) ** 2))
+        if variance_x > 0:
+            slope_stderr = float(np.sqrt(ss_residual / degrees_of_freedom / variance_x))
+            slope_ci = [float(slope - _t95(degrees_of_freedom) * slope_stderr),
+                        float(slope + _t95(degrees_of_freedom) * slope_stderr)]
+
     return {
         "slope_per_doubling_pp": float(slope),
+        "slope_stderr_pp": slope_stderr,
+        "slope_ci95_pp": slope_ci,
         "intercept_pp": float(intercept),
         "r_squared": 1.0 - ss_residual / ss_total if ss_total > 0 else float("nan"),
         "n_points": len(samples),
+        "degrees_of_freedom": degrees_of_freedom,
     }
+
+
+# Two-sided 95% critical values of Student's t, by degrees of freedom. Tabulated
+# rather than pulled from scipy: this is the only statistic the package needs and
+# scipy is a heavy dependency to add for one lookup. Values beyond 30 are close
+# enough to the normal limit that 1.96 is used.
+T95 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365,
+       8: 2.306, 9: 2.262, 10: 2.228, 11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145,
+       15: 2.131, 16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093, 20: 2.086}
+
+
+def _t95(degrees_of_freedom: int) -> float:
+    return T95.get(degrees_of_freedom, 1.96)
 
 
 # Below this, the fitted slope is not distinguishable from flat given the scatter,
