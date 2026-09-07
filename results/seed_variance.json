@@ -1,0 +1,29 @@
+{
+  "per_size": [
+    {
+      "train_samples": 384,
+      "n_seeds": 2,
+      "seeds": [
+        0,
+        1
+      ],
+      "rates_pp": [
+        43.53333333333333,
+        48.13333333333333
+      ],
+      "mean_pp": 45.83333333333333,
+      "range_pp": 4.600000000000001,
+      "observed_sd_pp": 3.2526911934581193,
+      "evaluation_sd_pp": 1.2851326491556916,
+      "training_sd_pp": 2.98804853944411
+    }
+  ],
+  "split": "unseen",
+  "pooled": {
+    "degrees_of_freedom": 1,
+    "observed_sd_pp": 3.2526911934581193,
+    "evaluation_sd_pp": 1.2851326491556916,
+    "training_sd_pp": 2.98804853944411
+  },
+  "inferred_from_curve_sd_pp": 2.3298299473940727
+}
