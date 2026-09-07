@@ -343,17 +343,24 @@ class IsaacBackend:
         self._objects.write_root_state_to_sim(root)
 
     def _retract_arm(self) -> None:
-        """Park the arm in the capture pose so it never occludes the object."""
+        """Park the arm in the capture pose so it never occludes the object.
+
+        Joints are addressed by name rather than by position. Isaac orders an
+        articulation's joints by its own traversal, which is not guaranteed to
+        put the seven arm joints first; assuming it does would write the capture
+        pose into the wrong joints and leave the arm somewhere plausible but not
+        out of shot, which the depth map would then quietly include.
+        """
         import torch
         from simgrasp.scene import CAPTURE_QPOS
 
+        arm = self._arm_joint_indices()
+        fingers = self._finger_joint_indices()
         joints = self._robot.data.default_joint_pos.clone()
-        capture = torch.tensor(CAPTURE_QPOS, dtype=joints.dtype, device=joints.device)
-        joints[:, : capture.numel()] = capture
-        # Fingers open.
-        joints[:, capture.numel():] = 0.04
-        velocities = torch.zeros_like(joints)
-        self._robot.write_joint_state_to_sim(joints, velocities)
+        joints[:, arm] = torch.tensor(CAPTURE_QPOS, dtype=joints.dtype,
+                                      device=joints.device)
+        joints[:, fingers] = 0.04  # fully open: 0.04 m of travel per finger
+        self._robot.write_joint_state_to_sim(joints, torch.zeros_like(joints))
         self._robot.set_joint_position_target(joints)
 
     def _settle(self, seconds: float) -> None:
@@ -385,8 +392,10 @@ class IsaacBackend:
         """
         self._scene.write_data_to_sim()
         self._sim.step(render=True)
+        # scene.update advances every sensor, the camera included. Updating the
+        # camera again here would advance its buffers twice for one render and
+        # its timestamps would stop matching the physics state.
         self._scene.update(PHYSICS_DT)
-        self._camera.update(PHYSICS_DT)
 
         rgb = self._camera.data.output["rgb"].detach().cpu().numpy()[..., :3].astype(np.uint8)
         depth = self._camera.data.output["distance_to_image_plane"].detach().cpu().numpy()
