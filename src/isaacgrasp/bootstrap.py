@@ -106,7 +106,14 @@ def preimport_torch_if_needed(backend: str) -> None:
 
 
 def setup() -> str:
-    """Choose a backend and apply the guard. Idempotent."""
+    """Point simgrasp at this repository's assets, choose a backend, apply the guard.
+
+    The assets step has to come first and has to happen before anything imports
+    ``simgrasp.paths``, which resolves its own asset directory at import time.
+    """
+    from .assets import configure_assets_dir
+
+    configure_assets_dir()
     backend = choose_gl_backend()
     preimport_torch_if_needed(backend)
     return backend

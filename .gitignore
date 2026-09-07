@@ -9,6 +9,10 @@ dist/
 venv/
 .pytest_cache/
 
+# Vendored simulation assets, fetched by scripts/fetch_assets.py (~33 MB).
+# Not committed here for the same reason simgrasp does not commit them.
+/assets/franka_emika_panda/
+
 # Generated data / runs.
 #
 # Anchored with a leading slash so the pattern matches only the directory at the

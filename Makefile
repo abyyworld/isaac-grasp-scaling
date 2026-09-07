@@ -22,10 +22,11 @@ SIZES    ?= 128 256 512 1024 2048
 EPOCHS   ?= 10
 INPUT    ?= 96
 
-.PHONY: help install check collect scaling plot throughput test lint clean
+.PHONY: help install assets check collect scaling plot throughput test lint clean
 
 help:
 	@echo "make install     create $(VENV) and install the package"
+	@echo "make assets      fetch the Franka Panda MJCF (~33 MB, pinned commit)"
 	@echo "make check       verify the install by running it (add ISAAC=1 on a GPU box)"
 	@echo "make collect     generate a dataset      (BACKEND=$(BACKEND) SCENES=$(SCENES))"
 	@echo "make scaling     train the curve         (DATA=$(DATA) SIZES='$(SIZES)')"
@@ -42,7 +43,10 @@ $(VENV):
 install: $(VENV)
 	$(PIP) install -e ".[dev]"
 
-check:
+assets:
+	$(PY) scripts/fetch_assets.py
+
+check: assets
 	$(PY) scripts/check_setup.py $(if $(ISAAC),--isaac,)
 
 collect:

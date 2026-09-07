@@ -56,6 +56,7 @@ GPU box is not "does it work" but "which of the six things it needs is missing".
 
 ```bash
 make install
+make assets         # Franka Panda MJCF, ~33 MB, from a pinned Menagerie commit
 make check          # verifies the install by running it, not by reading it
 make test
 ```

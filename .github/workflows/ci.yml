@@ -35,25 +35,11 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Fetch the Panda assets
-        # The robot meshes are not vendored in either repository; simgrasp pulls
-        # them from a pinned MuJoCo Menagerie commit.
-        run: |
-          python - <<'PY'
-          import simgrasp.paths as paths
-          print("assets expected at", paths.PANDA_DIR)
-          PY
-          git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/google-deepmind/mujoco_menagerie.git /tmp/menagerie
-          cd /tmp/menagerie && git sparse-checkout set franka_emika_panda
-          python - <<'PY'
-          import shutil
-          from pathlib import Path
-          import simgrasp.paths as paths
-          paths.ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-          shutil.copytree("/tmp/menagerie/franka_emika_panda", paths.PANDA_DIR,
-                          dirs_exist_ok=True)
-          print("copied to", paths.PANDA_DIR)
-          PY
+        # The robot meshes are not vendored in either repository. This also
+        # exercises isaacgrasp.assets, which exists because simgrasp resolves
+        # its own asset directory relative to a checkout and this project
+        # depends on it as a pinned git install, where that resolution is wrong.
+        run: python scripts/fetch_assets.py
 
       - name: Lint
         run: ruff check src scripts tests
