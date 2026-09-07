@@ -201,3 +201,34 @@ def test_a_poorly_supported_slope_is_not_extrapolated():
     assert extrapolation["projected_samples"] is None
     assert "not distinguishable from flat" in extrapolation["note"]
     assert "not evidence that the curve is flat" in extrapolation["note"]
+
+
+def test_the_slope_carries_a_confidence_interval():
+    """A null result is only useful if it comes with a bound."""
+    from isaacgrasp.scaling import fit_log_trend
+
+    trend = fit_log_trend([384, 768, 1536, 3072, 6144],
+                          [0.42, 0.48, 0.42, 0.52, 0.44])
+    low, high = trend["slope_ci95_pp"]
+    assert low < trend["slope_per_doubling_pp"] < high
+    assert trend["slope_stderr_pp"] > 0
+    assert trend["degrees_of_freedom"] == 3
+
+
+def test_a_perfect_fit_has_a_zero_width_interval():
+    from isaacgrasp.scaling import fit_log_trend
+
+    trend = fit_log_trend([1000, 2000, 4000, 8000], [0.30, 0.35, 0.40, 0.45])
+    low, high = trend["slope_ci95_pp"]
+    assert low == pytest.approx(5.0, abs=1e-6)
+    assert high == pytest.approx(5.0, abs=1e-6)
+    assert trend["slope_stderr_pp"] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_two_points_cannot_support_an_interval():
+    """With two points the fit is exact and there are no residual degrees of freedom."""
+    from isaacgrasp.scaling import fit_log_trend
+
+    trend = fit_log_trend([1000, 2000], [0.30, 0.40])
+    assert trend["degrees_of_freedom"] == 0
+    assert trend["slope_stderr_pp"] != trend["slope_stderr_pp"]  # NaN

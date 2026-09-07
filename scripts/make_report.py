@@ -190,8 +190,8 @@ def readme_block(result: dict, figure: str | None) -> str:
         f"Over a {last['train_samples'] / first['train_samples']:.0f}x range in training "
         f"data, fitting rate against log2(samples):",
         "",
-        "| quantity | slope per doubling | r-squared |",
-        "|---|---|---|",
+        "| quantity | slope per doubling | 95% interval | r-squared |",
+        "|---|---|---|---|",
     ]
     for key, label in (("seen_success", "Seen-category success"),
                        ("held_out_success", "Held-out success"),
@@ -200,17 +200,42 @@ def readme_block(result: dict, figure: str | None) -> str:
         if not trend:
             continue
         unit = "deg" if "angle" in key else "pp"
-        value = trend["slope_per_doubling_pp"]
-        if "angle" in key:
-            value = value  # already in degrees, the fit was run on degrees / 100
-        lines.append(f"| {label} | {value:+.2f} {unit} | {trend['r_squared']:.2f} |")
+        low, high = trend.get("slope_ci95_pp", [float("nan"), float("nan")])
+        interval = ("not available" if low != low
+                    else f"{low:+.2f} to {high:+.2f}")
+        lines.append(f"| {label} | {trend['slope_per_doubling_pp']:+.2f} {unit} "
+                     f"| {interval} | {trend['r_squared']:.2f} |")
 
     held_trend = trends.get("held_out_success", {})
+    low, high = held_trend.get("slope_ci95_pp", [float("nan"), float("nan")])
+    bounded = low == low and high == high
+    if bounded and low <= 0 <= high:
+        verdict = (
+            f"Held-out success is **consistent with flat**: its 95% interval runs from "
+            f"{low:+.2f} to {high:+.2f} points per doubling, which contains zero. The "
+            f"useful half of that is the upper end. Whatever gain more data buys on "
+            f"unseen shapes, over this range it is **at most {high:.2f} points per "
+            f"doubling**, and closing the {100 * (controls['unseen']['rate'] - last['unseen']['rate']):.0f} "
+            f"point distance to the heuristic at that rate would take about "
+            f"{(100 * (controls['unseen']['rate'] - last['unseen']['rate']) / high):.0f} "
+            f"further doublings.")
+    elif bounded and low > 0:
+        verdict = (
+            f"Held-out success **is rising**, by {low:+.2f} to {high:+.2f} points per "
+            f"doubling at 95% confidence. Closing the "
+            f"{100 * (controls['unseen']['rate'] - last['unseen']['rate']):.0f} point "
+            f"distance to the heuristic would take between "
+            f"{(100 * (controls['unseen']['rate'] - last['unseen']['rate']) / high):.0f} "
+            f"and {(100 * (controls['unseen']['rate'] - last['unseen']['rate']) / low):.0f} "
+            "further doublings.")
+    else:
+        verdict = (
+            f"Held-out success does not resolve: the fitted slope explains "
+            f"{held_trend.get('r_squared', float('nan')):.0%} of the scatter.")
+
     lines += [
         "",
-        f"Seen-category success rises. Held-out success does not resolve: the fitted "
-        f"slope explains {held_trend.get('r_squared', float('nan')):.0%} of the scatter, "
-        f"so over this range it is not distinguishable from flat. It moved from "
+        f"Seen-category success rises. {verdict} Held-out success moved from "
         f"{first['unseen']['rate']:.1%} to {last['unseen']['rate']:.1%} against the "
         f"heuristic's {controls['unseen']['rate']:.1%}, and the gap between seen and "
         f"held-out went from {first['generalisation_gap_pp']:.1f} to "
