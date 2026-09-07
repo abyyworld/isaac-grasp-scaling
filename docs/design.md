@@ -230,6 +230,16 @@ evaluation was affordable at all.
 Training is deliberately left alone. There the work is one process with a large
 batch, and intra-op parallelism is worth having.
 
+**Collection is unaffected, which was worth checking rather than assuming.** The
+same four-worker shape applies to dataset generation, so the fix might have been
+expected to carry over and make the published samples-per-hour figure stale.
+Measured over 60 scenes in one process: 17,432 samples per hour with default
+threading, 17,926 with one thread. That is inside the noise of a 37 second run.
+The difference is what each worker spends its time on. An evaluation worker runs
+a 14 million parameter forward pass per episode, which is exactly the work torch
+parallelises; a collection worker runs MuJoCo physics and numpy geometry, which
+is not. The 59,850 samples per hour in `results/throughput.json` stands.
+
 The measurement itself needed two attempts. The first benchmark ran the
 evaluation under `python -c`, which has no `__main__` guard, and multiprocessing
 with the spawn start method hung rather than failing. That is worth writing down
