@@ -2,62 +2,68 @@
   "per_size": [
     {
       "train_samples": 384,
-      "n_seeds": 2,
+      "n_seeds": 3,
       "seeds": [
         0,
-        1
+        1,
+        2
       ],
       "rates_pp": [
         43.53333333333333,
-        48.13333333333333
+        48.13333333333333,
+        46.13333333333333
       ],
-      "mean_pp": 45.83333333333333,
+      "mean_pp": 45.93333333333333,
       "range_pp": 4.600000000000001,
-      "observed_sd_pp": 3.2526911934581193,
-      "evaluation_sd_pp": 1.2851326491556916,
-      "training_sd_pp": 2.98804853944411
+      "observed_sd_pp": 2.3065125189341598,
+      "evaluation_sd_pp": 1.2857982100769298,
+      "training_sd_pp": 1.9148689153472012
     },
     {
       "train_samples": 1536,
-      "n_seeds": 2,
+      "n_seeds": 3,
       "seeds": [
         0,
-        1
+        1,
+        2
       ],
       "rates_pp": [
         44.733333333333334,
-        50.2
+        50.2,
+        55.666666666666664
       ],
-      "mean_pp": 47.46666666666667,
-      "range_pp": 5.466666666666669,
-      "observed_sd_pp": 3.865517070486461,
-      "evaluation_sd_pp": 1.2874033584729407,
-      "training_sd_pp": 3.6448339900213322
+      "mean_pp": 50.199999999999996,
+      "range_pp": 10.93333333333333,
+      "observed_sd_pp": 5.466666666666665,
+      "evaluation_sd_pp": 1.285829702834461,
+      "training_sd_pp": 5.313293368500658
     },
     {
       "train_samples": 6144,
-      "n_seeds": 2,
+      "n_seeds": 3,
       "seeds": [
         0,
-        1
+        1,
+        2
       ],
       "rates_pp": [
         48.4,
-        47.13333333333333
+        47.13333333333333,
+        50.13333333333333
       ],
-      "mean_pp": 47.766666666666666,
-      "range_pp": 1.2666666666666657,
-      "observed_sd_pp": 0.8956685895029596,
-      "evaluation_sd_pp": 1.2896022929857383,
-      "training_sd_pp": 0.0
+      "mean_pp": 48.55555555555555,
+      "range_pp": 3.0,
+      "observed_sd_pp": 1.5060372333206602,
+      "evaluation_sd_pp": 1.290064980658334,
+      "training_sd_pp": 0.7770974802604631
     }
   ],
   "split": "unseen",
   "pooled": {
-    "degrees_of_freedom": 3,
-    "observed_sd_pp": 2.962231391166939,
-    "evaluation_sd_pp": 1.2873807268257782,
-    "training_sd_pp": 2.6678578820867407
+    "degrees_of_freedom": 6,
+    "observed_sd_pp": 3.5342416722022363,
+    "evaluation_sd_pp": 1.2872325244556482,
+    "training_sd_pp": 3.291488512134654
   },
   "inferred_from_curve_sd_pp": 2.3298299473940727
 }

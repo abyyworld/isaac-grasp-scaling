@@ -198,6 +198,8 @@ def seed_variance_section(variance: dict) -> list[str]:
     lines = [
         "### What a re-run does, measured directly",
         "",
+        "**This is the most important measurement in the study.**",
+        "",
         "The decomposition above infers training variance by subtracting the binomial "
         "term from the scatter about a fitted line, which assumes the true relationship "
         "is log-linear and charges any curvature to noise. These runs assume nothing: "
@@ -223,27 +225,69 @@ def seed_variance_section(variance: dict) -> list[str]:
         f"**{pooled['training_sd_pp']:.2f} points of training variance**.",
     ]
     if inferred is not None:
-        agreement = ("agrees with" if abs(pooled["training_sd_pp"] - inferred) < 1.0
-                     else "differs from")
+        difference = pooled["training_sd_pp"] - inferred
         lines.append(
-            f"That {agreement} the {inferred:.2f} points the curve's residual inferred. "
-            "The inference rested on the relationship being log-linear; the measurement "
-            "did not need it to be.")
+            f"The curve's residual inferred {inferred:.2f} points, so the direct "
+            f"measurement is {abs(difference):.2f} points "
+            f"{'higher' if difference > 0 else 'lower'}. The same order, which is the "
+            "check that mattered, and the direction is expected: every point on the "
+            "curve was trained with the same seed, so those runs share an "
+            "initialisation stream and their scatter understates what independent runs "
+            "do. The replicates are the number to trust.")
 
-    smallest, largest = per_size[0], per_size[-1]
-    if largest["training_sd_pp"] < smallest["training_sd_pp"]:
+    # Only claim a trend in variance if it is actually monotonic. Comparing the
+    # first and last size alone would have reported one here on two seeds, and
+    # the third seed showed the middle size has the largest spread of all.
+    observed = [row["observed_sd_pp"] for row in per_size]
+    monotonic = all(a > b for a, b in zip(observed, observed[1:], strict=True))
+    if monotonic and len(per_size) >= 3:
         lines += [
             "",
-            f"Run-to-run variance appears to shrink with data: "
-            f"{smallest['observed_sd_pp']:.2f} points at "
-            f"{smallest['train_samples']:,} grasps against "
-            f"{largest['observed_sd_pp']:.2f} at {largest['train_samples']:,}. If that "
-            "holds, the large end of the curve is more trustworthy than the small end, "
-            "and the flatness at the top is more meaningful than the scatter at the "
-            "bottom.",
+            f"Run-to-run variance shrinks with data at every size measured: "
+            f"{observed[0]:.2f} points at {per_size[0]['train_samples']:,} grasps down to "
+            f"{observed[-1]:.2f} at {per_size[-1]['train_samples']:,}. The large end of "
+            "the curve is therefore more trustworthy than the small end.",
+        ]
+    else:
+        worst = max(per_size, key=lambda row: row["observed_sd_pp"])
+        lines += [
+            "",
+            f"Variance does **not** fall cleanly with data. The widest spread is at "
+            f"{worst['train_samples']:,} grasps, in the middle of the range, where three "
+            f"runs of the identical experiment gave "
+            f"{', '.join(f'{r:.1f}%' for r in worst['rates_pp'])}: a "
+            f"{worst['range_pp']:.1f} point spread from nothing but the seed. Any story "
+            "about the large end being steadier than the small end is not supported by "
+            "these runs.",
         ]
     lines.append("")
     return lines
+
+
+def variance_versus_effect(variance: dict, points: list[dict]) -> list[str]:
+    """The comparison the whole study turns on: noise against signal."""
+    pooled = variance.get("pooled")
+    if not pooled or len(points) < 2:
+        return []
+    ordered = sorted(points, key=lambda p: p["train_samples"])
+    first, last = ordered[0], ordered[-1]
+    effect = 100.0 * (last["unseen"]["rate"] - first["unseen"]["rate"])
+    noise = pooled["training_sd_pp"]
+    ratio = effect / noise if noise else float("inf")
+    return [
+        f"Put that next to the effect it has to be measured against. Going from "
+        f"{first['train_samples']:,} labelled grasps to {last['train_samples']:,}, a "
+        f"{last['train_samples'] / first['train_samples']:.0f}x increase, moved held-out "
+        f"success by {effect:.1f} points. Re-running one training moves it by "
+        f"{noise:.2f} points, one standard deviation.",
+        "",
+        f"**The entire effect of a {last['train_samples'] / first['train_samples']:.0f}x "
+        f"increase in data is about {ratio:.1f} standard deviations of the noise you get "
+        "for free by changing a seed.** That is the honest reason this question is hard, "
+        "and it is not a reason a bigger simulator fixes. It is an argument for repeated "
+        "runs, and for suspecting that what is being measured is mostly not there.",
+        "",
+    ]
 
 
 def readme_block(result: dict, figure: str | None,
@@ -431,6 +475,7 @@ def readme_block(result: dict, figure: str | None,
         "bigger simulator.",
         "",
         *seed_variance_section(variance or {}),
+        *variance_versus_effect(variance or {}, points),
         "### What this arm does not settle",
         "",
         f"**It tops out below the study it follows up.** The largest point here is "

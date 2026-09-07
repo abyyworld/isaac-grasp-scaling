@@ -92,18 +92,24 @@ It is worth putting that next to the trend: retraining the same size moves held-
 
 ### What a re-run does, measured directly
 
+**This is the most important measurement in the study.**
+
 The decomposition above infers training variance by subtracting the binomial term from the scatter about a fitted line, which assumes the true relationship is log-linear and charges any curvature to noise. These runs assume nothing: same dataset size, same evaluation scenes, only the training seed changed, so initialisation, data order, augmentation draws and the train/validation split differ and nothing else does.
 
 | training grasps | seeds | held-out (%) | spread | observed SD | training SD |
 |---|---|---|---|---|---|
-| 384 | 2 | 43.5, 48.1 | 4.6 pp | 3.25 pp | 2.99 pp |
-| 1,536 | 2 | 44.7, 50.2 | 5.5 pp | 3.87 pp | 3.64 pp |
-| 6,144 | 2 | 48.4, 47.1 | 1.3 pp | 0.90 pp | 0.00 pp |
+| 384 | 3 | 43.5, 48.1, 46.1 | 4.6 pp | 2.31 pp | 1.91 pp |
+| 1,536 | 3 | 44.7, 50.2, 55.7 | 10.9 pp | 5.47 pp | 5.31 pp |
+| 6,144 | 3 | 48.4, 47.1, 50.1 | 3.0 pp | 1.51 pp | 0.78 pp |
 
-Pooled over 3 degrees of freedom: 2.96 points observed, 1.29 of it the binomial evaluation floor, **2.67 points of training variance**.
-That agrees with the 2.33 points the curve's residual inferred. The inference rested on the relationship being log-linear; the measurement did not need it to be.
+Pooled over 6 degrees of freedom: 3.53 points observed, 1.29 of it the binomial evaluation floor, **3.29 points of training variance**.
+The curve's residual inferred 2.33 points, so the direct measurement is 0.96 points higher. The same order, which is the check that mattered, and the direction is expected: every point on the curve was trained with the same seed, so those runs share an initialisation stream and their scatter understates what independent runs do. The replicates are the number to trust.
 
-Run-to-run variance appears to shrink with data: 3.25 points at 384 grasps against 0.90 at 6,144. If that holds, the large end of the curve is more trustworthy than the small end, and the flatness at the top is more meaningful than the scatter at the bottom.
+Variance does **not** fall cleanly with data. The widest spread is at 1,536 grasps, in the middle of the range, where three runs of the identical experiment gave 44.7%, 50.2%, 55.7%: a 10.9 point spread from nothing but the seed. Any story about the large end being steadier than the small end is not supported by these runs.
+
+Put that next to the effect it has to be measured against. Going from 384 labelled grasps to 12,288, a 32x increase, moved held-out success by 6.1 points. Re-running one training moves it by 3.29 points, one standard deviation.
+
+**The entire effect of a 32x increase in data is about 1.8 standard deviations of the noise you get for free by changing a seed.** That is the honest reason this question is hard, and it is not a reason a bigger simulator fixes. It is an argument for repeated runs, and for suspecting that what is being measured is mostly not there.
 
 ### What this arm does not settle
 

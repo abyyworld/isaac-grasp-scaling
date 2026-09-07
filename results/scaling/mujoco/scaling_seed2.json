@@ -1,0 +1,923 @@
+{
+  "config": {
+    "data": "/home/user/scratch/data/mj18k",
+    "out": "results/scaling/mujoco",
+    "sizes": [
+      128,
+      512,
+      2048
+    ],
+    "epochs": 12,
+    "batch_size": 32,
+    "input_size": 112,
+    "pretrained": false,
+    "train_split": "seen",
+    "workers": 2,
+    "device": null,
+    "seed": 0,
+    "train_seed": 2,
+    "eval_episodes": 1500,
+    "eval_workers": 4,
+    "eval_offset": 1000000,
+    "angle_episodes": 40,
+    "controls": [
+      "heuristic"
+    ],
+    "label": "",
+    "extra": {}
+  },
+  "dataset": {
+    "path": "/home/user/scratch/data/mj18k",
+    "backend": "mujoco",
+    "n_scenes": 6000,
+    "angles_per_scene": 3,
+    "image_size": 224,
+    "stats": {
+      "n": 18000,
+      "successes": 6026,
+      "unstable": 0,
+      "by_category": {
+        "cylinder": {
+          "n": 4494,
+          "positives": 1468,
+          "positive_rate": 0.32665776591010237
+        },
+        "box": {
+          "n": 4440,
+          "positives": 1538,
+          "positive_rate": 0.3463963963963964
+        },
+        "capsule": {
+          "n": 4506,
+          "positives": 1552,
+          "positive_rate": 0.3444296493564137
+        },
+        "sphere": {
+          "n": 4560,
+          "positives": 1468,
+          "positive_rate": 0.3219298245614035
+        }
+      },
+      "by_mode": {
+        "on_object": {
+          "n": 4539,
+          "positives": 1607,
+          "positive_rate": 0.3540427406917823
+        },
+        "off_object": {
+          "n": 2667,
+          "positives": 27,
+          "positive_rate": 0.010123734533183352
+        },
+        "near_oracle": {
+          "n": 8097,
+          "positives": 3704,
+          "positive_rate": 0.4574533777942448
+        },
+        "edge": {
+          "n": 2697,
+          "positives": 688,
+          "positive_rate": 0.25509825732295144
+        }
+      },
+      "positive_rate": 0.3347777777777778
+    }
+  },
+  "controls": {
+    "heuristic": {
+      "eval_previous": {
+        "seen": {
+          "rate": 0.905,
+          "ci95": [
+            0.8563973488560237,
+            0.9383373863501365
+          ],
+          "n": 200,
+          "by_category": {
+            "box": {
+              "n": 60,
+              "successes": 55,
+              "rate": 0.9166666666666666,
+              "ci95": [
+                0.8193083153188752,
+                0.9638800759495141
+              ],
+              "split": "seen"
+            },
+            "cylinder": {
+              "n": 59,
+              "successes": 51,
+              "rate": 0.864406779661017,
+              "ci95": [
+                0.7546010154508226,
+                0.9296590925031444
+              ],
+              "split": "seen"
+            },
+            "capsule": {
+              "n": 43,
+              "successes": 42,
+              "rate": 0.9767441860465116,
+              "ci95": [
+                0.8794073213878312,
+                0.9958830188225801
+              ],
+              "split": "seen"
+            },
+            "sphere": {
+              "n": 38,
+              "successes": 33,
+              "rate": 0.868421052631579,
+              "ci95": [
+                0.7267282994850112,
+                0.9424621712426856
+              ],
+              "split": "seen"
+            }
+          }
+        },
+        "unseen": {
+          "rate": 0.755,
+          "ci95": [
+            0.6909563161285153,
+            0.809432220853141
+          ],
+          "n": 200,
+          "by_category": {
+            "ellipsoid": {
+              "n": 47,
+              "successes": 43,
+              "rate": 0.9148936170212766,
+              "ci95": [
+                0.8006819480497736,
+                0.9664064205302869
+              ],
+              "split": "unseen"
+            },
+            "l_shape": {
+              "n": 48,
+              "successes": 22,
+              "rate": 0.4583333333333333,
+              "ci95": [
+                0.3257502185455351,
+                0.5970916690505266
+              ],
+              "split": "unseen"
+            },
+            "t_shape": {
+              "n": 41,
+              "successes": 32,
+              "rate": 0.7804878048780488,
+              "ci95": [
+                0.6329469790176472,
+                0.8799695984461366
+              ],
+              "split": "unseen"
+            },
+            "mug": {
+              "n": 31,
+              "successes": 28,
+              "rate": 0.9032258064516129,
+              "ci95": [
+                0.7509971000182295,
+                0.966535963905356
+              ],
+              "split": "unseen"
+            },
+            "dumbbell": {
+              "n": 33,
+              "successes": 26,
+              "rate": 0.7878787878787878,
+              "ci95": [
+                0.6224802241287064,
+                0.8932411343356381
+              ],
+              "split": "unseen"
+            }
+          }
+        }
+      },
+      "seen": {
+        "rate": 0.9046666666666666,
+        "ci95": [
+          0.8887539819134073,
+          0.9185118897049865
+        ],
+        "n": 1500,
+        "by_category": {
+          "box": {
+            "n": 381,
+            "successes": 357,
+            "rate": 0.937007874015748,
+            "ci95": [
+              0.9079833010483029,
+              0.9573077693557281
+            ],
+            "split": "seen"
+          },
+          "cylinder": {
+            "n": 396,
+            "successes": 362,
+            "rate": 0.9141414141414141,
+            "ci95": [
+              0.8824150089236189,
+              0.9379098397164425
+            ],
+            "split": "seen"
+          },
+          "capsule": {
+            "n": 369,
+            "successes": 356,
+            "rate": 0.964769647696477,
+            "ci95": [
+              0.9406639672338752,
+              0.9792977537757976
+            ],
+            "split": "seen"
+          },
+          "sphere": {
+            "n": 354,
+            "successes": 282,
+            "rate": 0.7966101694915254,
+            "ci95": [
+              0.7515985685839633,
+              0.8352532675357053
+            ],
+            "split": "seen"
+          }
+        }
+      },
+      "unseen": {
+        "rate": 0.7946666666666666,
+        "ci95": [
+          0.7734837518772579,
+          0.8143441151002215
+        ],
+        "n": 1500,
+        "by_category": {
+          "ellipsoid": {
+            "n": 303,
+            "successes": 272,
+            "rate": 0.8976897689768977,
+            "ci95": [
+              0.8584376591183092,
+              0.926983874337389
+            ],
+            "split": "unseen"
+          },
+          "l_shape": {
+            "n": 317,
+            "successes": 169,
+            "rate": 0.5331230283911672,
+            "ci95": [
+              0.4781334065714661,
+              0.5873194524094142
+            ],
+            "split": "unseen"
+          },
+          "t_shape": {
+            "n": 314,
+            "successes": 259,
+            "rate": 0.8248407643312102,
+            "ci95": [
+              0.7789424644132328,
+              0.8628866731194251
+            ],
+            "split": "unseen"
+          },
+          "mug": {
+            "n": 291,
+            "successes": 277,
+            "rate": 0.9518900343642611,
+            "ci95": [
+              0.9208754773589669,
+              0.97112890736829
+            ],
+            "split": "unseen"
+          },
+          "dumbbell": {
+            "n": 275,
+            "successes": 215,
+            "rate": 0.7818181818181819,
+            "ci95": [
+              0.729302926290307,
+              0.8265682206260785
+            ],
+            "split": "unseen"
+          }
+        }
+      }
+    }
+  },
+  "points": [
+    {
+      "train_scenes": 128,
+      "train_seed": 2,
+      "scene_seed": 0,
+      "train_samples": 384,
+      "epochs": 12,
+      "best_val_ap": 0.5357218320671359,
+      "best_epoch": 11,
+      "train_seconds": 649.218193576,
+      "point_seconds": 1382.3392250680008,
+      "device": "cpu",
+      "seen": {
+        "rate": 0.6673333333333333,
+        "ci95": [
+          0.6430881099468722,
+          0.6907236425674883
+        ],
+        "n": 1500,
+        "by_category": {
+          "box": {
+            "n": 381,
+            "successes": 252,
+            "rate": 0.6614173228346457,
+            "ci95": [
+              0.6124977165009299,
+              0.7071143004951538
+            ],
+            "split": "seen"
+          },
+          "cylinder": {
+            "n": 396,
+            "successes": 285,
+            "rate": 0.7196969696969697,
+            "ci95": [
+              0.6735104442269032,
+              0.7616618840150807
+            ],
+            "split": "seen"
+          },
+          "capsule": {
+            "n": 369,
+            "successes": 172,
+            "rate": 0.46612466124661245,
+            "ci95": [
+              0.4158358576189177,
+              0.5171115388089487
+            ],
+            "split": "seen"
+          },
+          "sphere": {
+            "n": 354,
+            "successes": 292,
+            "rate": 0.8248587570621468,
+            "ci95": [
+              0.7818354051378289,
+              0.8609070820408555
+            ],
+            "split": "seen"
+          }
+        },
+        "failure_reasons": {
+          "dropped": 29,
+          "success": 1001,
+          "no_lift": 10,
+          "closed_empty": 460
+        }
+      },
+      "unseen": {
+        "rate": 0.4613333333333333,
+        "ci95": [
+          0.4362364430011075,
+          0.486627773549359
+        ],
+        "n": 1500,
+        "by_category": {
+          "ellipsoid": {
+            "n": 303,
+            "successes": 221,
+            "rate": 0.7293729372937293,
+            "ci95": [
+              0.6767065662651479,
+              0.7762958949395908
+            ],
+            "split": "unseen"
+          },
+          "l_shape": {
+            "n": 317,
+            "successes": 104,
+            "rate": 0.3280757097791798,
+            "ci95": [
+              0.2787172997832601,
+              0.3815511940778852
+            ],
+            "split": "unseen"
+          },
+          "t_shape": {
+            "n": 314,
+            "successes": 127,
+            "rate": 0.40445859872611467,
+            "ci95": [
+              0.35164451309939626,
+              0.4595822111557044
+            ],
+            "split": "unseen"
+          },
+          "mug": {
+            "n": 291,
+            "successes": 171,
+            "rate": 0.5876288659793815,
+            "ci95": [
+              0.5302857320894345,
+              0.6426885022112883
+            ],
+            "split": "unseen"
+          },
+          "dumbbell": {
+            "n": 275,
+            "successes": 69,
+            "rate": 0.2509090909090909,
+            "ci95": [
+              0.2033387115015572,
+              0.30534291993363755
+            ],
+            "split": "unseen"
+          }
+        },
+        "failure_reasons": {
+          "dropped": 84,
+          "closed_empty": 720,
+          "success": 692,
+          "no_lift": 4
+        }
+      },
+      "generalisation_gap_pp": 20.6,
+      "angle": {
+        "checkpoint": "results/scaling/mujoco/n000128_seed2/best.pt",
+        "angle_error_deg": 44.28502200916899,
+        "angle_error_deg_seen": 42.03918464793758,
+        "angle_error_deg_heldout": 45.07846155595135,
+        "bin_spread": 0.2968575713776909,
+        "n_scored": 226,
+        "n_seen": 59,
+        "n_heldout": 167,
+        "n_skipped_indeterminate": 134,
+        "chance_level_deg": 45.0,
+        "per_category_error_deg": {
+          "box": 44.31112827216308,
+          "capsule": 40.960011426430455,
+          "dumbbell": 43.02583508474977,
+          "ellipsoid": 41.49646962200422,
+          "l_shape": 44.126549440073724,
+          "mug": 47.914858068163454,
+          "t_shape": 45.873452219259214
+        },
+        "per_category_bin_spread": {
+          "box": 0.2927333445925462,
+          "capsule": 0.2990299861878157,
+          "dumbbell": 0.31283424645662306,
+          "ellipsoid": 0.3478454862322126,
+          "l_shape": 0.2878531739115715,
+          "mug": 0.28647623732686045,
+          "t_shape": 0.2911303356289864
+        }
+      }
+    },
+    {
+      "train_scenes": 512,
+      "train_seed": 2,
+      "scene_seed": 0,
+      "train_samples": 1536,
+      "epochs": 12,
+      "best_val_ap": 0.6534024776995174,
+      "best_epoch": 11,
+      "train_seconds": 1357.8324436490002,
+      "point_seconds": 2093.877487897,
+      "device": "cpu",
+      "seen": {
+        "rate": 0.774,
+        "ci95": [
+          0.7521497049004584,
+          0.7944504157505463
+        ],
+        "n": 1500,
+        "by_category": {
+          "box": {
+            "n": 381,
+            "successes": 302,
+            "rate": 0.7926509186351706,
+            "ci95": [
+              0.7491195247469667,
+              0.8303396605386156
+            ],
+            "split": "seen"
+          },
+          "cylinder": {
+            "n": 396,
+            "successes": 345,
+            "rate": 0.8712121212121212,
+            "ci95": [
+              0.8346193731204377,
+              0.9006718021849831
+            ],
+            "split": "seen"
+          },
+          "capsule": {
+            "n": 369,
+            "successes": 232,
+            "rate": 0.6287262872628726,
+            "ci95": [
+              0.5783396052392593,
+              0.6764602883348483
+            ],
+            "split": "seen"
+          },
+          "sphere": {
+            "n": 354,
+            "successes": 282,
+            "rate": 0.7966101694915254,
+            "ci95": [
+              0.7515985685839633,
+              0.8352532675357053
+            ],
+            "split": "seen"
+          }
+        },
+        "failure_reasons": {
+          "closed_empty": 298,
+          "success": 1161,
+          "dropped": 30,
+          "no_lift": 11
+        }
+      },
+      "unseen": {
+        "rate": 0.5566666666666666,
+        "ci95": [
+          0.531413163150578,
+          0.5816306574220141
+        ],
+        "n": 1500,
+        "by_category": {
+          "ellipsoid": {
+            "n": 303,
+            "successes": 231,
+            "rate": 0.7623762376237624,
+            "ci95": [
+              0.7113538863240871,
+              0.8068287851259379
+            ],
+            "split": "unseen"
+          },
+          "l_shape": {
+            "n": 317,
+            "successes": 125,
+            "rate": 0.3943217665615142,
+            "ci95": [
+              0.3420963620966484,
+              0.4490778497262573
+            ],
+            "split": "unseen"
+          },
+          "t_shape": {
+            "n": 314,
+            "successes": 147,
+            "rate": 0.4681528662420382,
+            "ci95": [
+              0.4136786912306543,
+              0.523396883521046
+            ],
+            "split": "unseen"
+          },
+          "mug": {
+            "n": 291,
+            "successes": 263,
+            "rate": 0.9037800687285223,
+            "ci95": [
+              0.8644495282643634,
+              0.9325886101801437
+            ],
+            "split": "unseen"
+          },
+          "dumbbell": {
+            "n": 275,
+            "successes": 69,
+            "rate": 0.2509090909090909,
+            "ci95": [
+              0.2033387115015572,
+              0.30534291993363755
+            ],
+            "split": "unseen"
+          }
+        },
+        "failure_reasons": {
+          "closed_empty": 596,
+          "success": 835,
+          "dropped": 66,
+          "no_lift": 3
+        }
+      },
+      "generalisation_gap_pp": 21.733333333333338,
+      "angle": {
+        "checkpoint": "results/scaling/mujoco/n000512_seed2/best.pt",
+        "angle_error_deg": 43.89244181864638,
+        "angle_error_deg_seen": 45.43306000755434,
+        "angle_error_deg_heldout": 43.34815156028968,
+        "bin_spread": 0.11137771791061468,
+        "n_scored": 226,
+        "n_seen": 59,
+        "n_heldout": 167,
+        "n_skipped_indeterminate": 134,
+        "chance_level_deg": 45.0,
+        "per_category_error_deg": {
+          "box": 49.16195050355242,
+          "capsule": 43.66183702195525,
+          "dumbbell": 39.973193893641565,
+          "ellipsoid": 51.14907930743791,
+          "l_shape": 50.23555694158729,
+          "mug": 41.64618893868648,
+          "t_shape": 40.17250411149244
+        },
+        "per_category_bin_spread": {
+          "box": 0.11107911561664782,
+          "capsule": 0.10771948173642158,
+          "dumbbell": 0.11144921481609345,
+          "ellipsoid": 0.11671457120350429,
+          "l_shape": 0.11110141724348069,
+          "mug": 0.11207294017076493,
+          "t_shape": 0.1137534223496914
+        }
+      }
+    },
+    {
+      "train_scenes": 2048,
+      "train_seed": 2,
+      "scene_seed": 0,
+      "train_samples": 6144,
+      "epochs": 12,
+      "best_val_ap": 0.6943373040908731,
+      "best_epoch": 10,
+      "train_seconds": 4424.593437685,
+      "point_seconds": 5152.739079158,
+      "device": "cpu",
+      "seen": {
+        "rate": 0.7773333333333333,
+        "ci95": [
+          0.7555855135896447,
+          0.7976642435656301
+        ],
+        "n": 1500,
+        "by_category": {
+          "box": {
+            "n": 381,
+            "successes": 294,
+            "rate": 0.7716535433070866,
+            "ci95": [
+              0.7269147304831581,
+              0.8109689078761043
+            ],
+            "split": "seen"
+          },
+          "cylinder": {
+            "n": 396,
+            "successes": 336,
+            "rate": 0.8484848484848485,
+            "ci95": [
+              0.8098326600591678,
+              0.8804406881867376
+            ],
+            "split": "seen"
+          },
+          "capsule": {
+            "n": 369,
+            "successes": 240,
+            "rate": 0.6504065040650406,
+            "ci95": [
+              0.6004294542314648,
+              0.6972841056288084
+            ],
+            "split": "seen"
+          },
+          "sphere": {
+            "n": 354,
+            "successes": 296,
+            "rate": 0.8361581920903954,
+            "ci95": [
+              0.7940297839590695,
+              0.8710689636432214
+            ],
+            "split": "seen"
+          }
+        },
+        "failure_reasons": {
+          "dropped": 54,
+          "success": 1166,
+          "closed_empty": 278,
+          "no_lift": 2
+        }
+      },
+      "unseen": {
+        "rate": 0.5013333333333333,
+        "ci95": [
+          0.47605886558800703,
+          0.526600989013701
+        ],
+        "n": 1500,
+        "by_category": {
+          "ellipsoid": {
+            "n": 303,
+            "successes": 215,
+            "rate": 0.7095709570957096,
+            "ci95": [
+              0.6560849234088892,
+              0.757809411648678
+            ],
+            "split": "unseen"
+          },
+          "l_shape": {
+            "n": 317,
+            "successes": 104,
+            "rate": 0.3280757097791798,
+            "ci95": [
+              0.2787172997832601,
+              0.3815511940778852
+            ],
+            "split": "unseen"
+          },
+          "t_shape": {
+            "n": 314,
+            "successes": 116,
+            "rate": 0.36942675159235666,
+            "ci95": [
+              0.3179195828961062,
+              0.4240902735858646
+            ],
+            "split": "unseen"
+          },
+          "mug": {
+            "n": 291,
+            "successes": 247,
+            "rate": 0.8487972508591065,
+            "ci95": [
+              0.8031083976833743,
+              0.8853968878665618
+            ],
+            "split": "unseen"
+          },
+          "dumbbell": {
+            "n": 275,
+            "successes": 70,
+            "rate": 0.2545454545454545,
+            "ci95": [
+              0.20668599296670861,
+              0.30916816939643943
+            ],
+            "split": "unseen"
+          }
+        },
+        "failure_reasons": {
+          "dropped": 69,
+          "closed_empty": 668,
+          "success": 752,
+          "no_lift": 11
+        }
+      },
+      "generalisation_gap_pp": 27.6,
+      "angle": {
+        "checkpoint": "results/scaling/mujoco/n002048_seed2/best.pt",
+        "angle_error_deg": 43.778405936161796,
+        "angle_error_deg_seen": 44.83914270278849,
+        "angle_error_deg_heldout": 43.40365462340147,
+        "bin_spread": 0.06320102110636973,
+        "n_scored": 226,
+        "n_seen": 59,
+        "n_heldout": 167,
+        "n_skipped_indeterminate": 134,
+        "chance_level_deg": 45.0,
+        "per_category_error_deg": {
+          "box": 52.86532218856495,
+          "capsule": 41.02670744704468,
+          "dumbbell": 38.92624182862794,
+          "ellipsoid": 43.30006559111049,
+          "l_shape": 45.53372798558261,
+          "mug": 44.70649905458481,
+          "t_shape": 44.46627770546145
+        },
+        "per_category_bin_spread": {
+          "box": 0.062222847813054136,
+          "capsule": 0.06616988070309163,
+          "dumbbell": 0.06722195148468017,
+          "ellipsoid": 0.06443044969013759,
+          "l_shape": 0.06211831718683243,
+          "mug": 0.0645367756485939,
+          "t_shape": 0.05620766282081604
+        }
+      }
+    }
+  ],
+  "parity": {
+    "simgrasp_version": "0.1.0",
+    "parity_ok": true,
+    "constants": {
+      "ANGLE_BINS": 12,
+      "APPROACH_HEIGHT": 0.12,
+      "CAMERA_FOVY_DEG": 48.0,
+      "CAMERA_HEIGHT": 0.55,
+      "CAMERA_X": 0.54,
+      "EVAL_EPISODE_OFFSET": 1000000,
+      "GRASP_DEPTH": 0.012,
+      "GRIP_BIAS": 0.005,
+      "HEIGHT_SCALE": 10000.0,
+      "LIFT_DISTANCE": 0.2,
+      "LIFT_SUCCESS_THRESHOLD": 0.08,
+      "MAX_APPROACH_DEPTH": 0.035,
+      "MAX_GRIPPER_WIDTH": 0.08,
+      "MIN_TCP_HEIGHT": 0.011,
+      "PLINTH_HALF": [
+        0.13,
+        0.13,
+        0.2
+      ],
+      "PRESHAPE_CLEARANCE": 0.022,
+      "SAFE_GRASP_WIDTH": 0.068,
+      "SEEN_CATEGORIES": [
+        "box",
+        "cylinder",
+        "capsule",
+        "sphere"
+      ],
+      "SETTLE_TIME": 0.6,
+      "TABLE_HEIGHT": 0.4,
+      "TCP_OFFSET_Z": 0.1034,
+      "UNSEEN_CATEGORIES": [
+        "ellipsoid",
+        "l_shape",
+        "t_shape",
+        "mug",
+        "dumbbell"
+      ],
+      "WORKSPACE_X": [
+        0.4,
+        0.68
+      ],
+      "WORKSPACE_Y": [
+        -0.2,
+        0.2
+      ]
+    },
+    "mismatched": {},
+    "missing": []
+  },
+  "reading": {
+    "trends": {
+      "held_out_success": {
+        "slope_per_doubling_pp": 0.9999999999999987,
+        "slope_stderr_pp": 2.174686013947591,
+        "slope_ci95_pp": [
+          -26.63156049321809,
+          28.63156049321809
+        ],
+        "intercept_pp": 40.059481943723306,
+        "residual_sd_pp": 6.150940909655537,
+        "r_squared": 0.17454263365440492,
+        "n_points": 3,
+        "degrees_of_freedom": 1
+      },
+      "seen_success": {
+        "slope_per_doubling_pp": 2.7500000000000013,
+        "slope_stderr_pp": 1.4914881954065347,
+        "slope_ci95_pp": [
+          -16.20084901083543,
+          21.70084901083543
+        ],
+        "intercept_pp": 44.84690867857236,
+        "residual_sd_pp": 4.218565668126589,
+        "r_squared": 0.7727057710501415,
+        "n_points": 3,
+        "degrees_of_freedom": 1
+      },
+      "held_out_angle_error": {
+        "slope_per_doubling_pp": -0.41870173313747117,
+        "slope_stderr_pp": 0.25775991255130204,
+        "slope_ci95_pp": [
+          -3.6937991820143146,
+          2.8563957157393722
+        ],
+        "intercept_pp": 48.37536472412793,
+        "residual_sd_pp": 0.7290551283323087,
+        "r_squared": 0.7251714108182012,
+        "n_points": 3,
+        "degrees_of_freedom": 1
+      }
+    },
+    "measured_range": [
+      384,
+      6144
+    ],
+    "scatter": {
+      "residual_sd_pp": 6.150940909655537,
+      "evaluation_sd_pp": 1.2869360685148445,
+      "training_sd_pp": 6.014804205427608,
+      "dominant_noise_source": "training",
+      "note": "Evaluation noise is the binomial term for the episode count used. Training noise is what is left after removing it, and covers initialisation, data order and augmentation draws at a fixed dataset size. More evaluation episodes only help while evaluation dominates."
+    },
+    "extrapolation": {
+      "target": "heuristic control, held-out",
+      "target_rate": 0.7946666666666666,
+      "projected_samples": null,
+      "times_the_measured_maximum": null,
+      "note": "No projection. The fitted held-out slope explains 17% of the scatter over 3 points, which is not enough to invert: within this range the trend is not distinguishable from flat. That is a statement about what this arm can resolve, not evidence that the curve is flat."
+    }
+  }
+}
