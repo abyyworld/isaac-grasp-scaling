@@ -204,6 +204,7 @@ def run_scaling(cfg: ScalingConfig) -> dict[str, Any]:
         "points": points,
         "parity": manifest(),
     }
+    result["reading"] = read_curve(result)
     (out_dir / "scaling.json").write_text(json.dumps(result, indent=2, default=float))
     write_csv(result, out_dir / "scaling.csv")
     return result
@@ -231,3 +232,86 @@ def write_csv(result: dict[str, Any], path: Path) -> None:
                 point["angle"]["angle_error_deg_heldout"], point["angle"]["bin_spread"],
                 point["train_seconds"],
             ])
+
+
+# --------------------------------------------------------------------------- #
+# Reading the curve.
+# --------------------------------------------------------------------------- #
+
+
+def fit_log_trend(samples: list[int], rates: list[float]) -> dict[str, float]:
+    """Least-squares fit of ``rate = a + b * log2(samples)``.
+
+    ``b`` is the slope in success-rate points per doubling of the training set,
+    and it is a measured property of the points that were run. It is reported
+    because "the curve is still rising" is an adjective and this is a number.
+
+    ``r_squared`` is reported next to it so the slope is not read as more solid
+    than the points supporting it. With five points and a 95% interval of about
+    seven points on each, a low value here means the slope is a summary of noise.
+    """
+    import numpy as np
+
+    if len(samples) < 2:
+        return {"slope_per_doubling_pp": float("nan"), "intercept_pp": float("nan"),
+                "r_squared": float("nan"), "n_points": len(samples)}
+
+    x = np.log2(np.asarray(samples, dtype=float))
+    y = 100.0 * np.asarray(rates, dtype=float)
+    slope, intercept = np.polyfit(x, y, 1)
+    predicted = slope * x + intercept
+    ss_residual = float(np.sum((y - predicted) ** 2))
+    ss_total = float(np.sum((y - y.mean()) ** 2))
+    return {
+        "slope_per_doubling_pp": float(slope),
+        "intercept_pp": float(intercept),
+        "r_squared": 1.0 - ss_residual / ss_total if ss_total > 0 else float("nan"),
+        "n_points": len(samples),
+    }
+
+
+def samples_to_reach(trend: dict[str, float], target_rate: float) -> float:
+    """Training set size at which the fitted trend would reach ``target_rate``.
+
+    **This is an extrapolation, not a measurement.** Projecting a line fitted
+    over one decade of data out to two or three decades assumes the trend holds
+    where nothing was measured, and success rates are bounded above so it cannot
+    hold indefinitely. It is reported because it converts "would need a lot more
+    data" into a quantity someone can decide about, and it should never be
+    quoted without the word extrapolation attached.
+
+    Returns ``inf`` when the fitted slope is flat or negative.
+    """
+    slope = trend["slope_per_doubling_pp"]
+    if not slope or slope <= 0:
+        return float("inf")
+    doublings = (100.0 * target_rate - trend["intercept_pp"]) / slope
+    return float(2.0 ** doublings)
+
+
+def read_curve(result: dict[str, Any]) -> dict[str, Any]:
+    """Fitted trends for the curve, and what they project about the control."""
+    points = sorted(result["points"], key=lambda p: p["train_samples"])
+    samples = [p["train_samples"] for p in points]
+    trends = {
+        "held_out_success": fit_log_trend(samples, [p["unseen"]["rate"] for p in points]),
+        "seen_success": fit_log_trend(samples, [p["seen"]["rate"] for p in points]),
+        "held_out_angle_error": fit_log_trend(
+            samples, [p["angle"]["angle_error_deg_heldout"] / 100.0 for p in points]),
+    }
+    out: dict[str, Any] = {"trends": trends, "measured_range": [samples[0], samples[-1]]}
+
+    control = result.get("controls", {}).get("heuristic", {}).get("unseen")
+    if control:
+        projected = samples_to_reach(trends["held_out_success"], control["rate"])
+        out["extrapolation"] = {
+            "note": ("Extrapolated from a log-linear fit over the measured range. "
+                     "Not a measurement, and success rates are bounded above so the "
+                     "fit cannot hold indefinitely."),
+            "target": "heuristic control, held-out",
+            "target_rate": control["rate"],
+            "projected_samples": projected,
+            "times_the_measured_maximum": (projected / samples[-1]
+                                           if projected != float("inf") else None),
+        }
+    return out

@@ -106,3 +106,69 @@ def test_record_is_read_from_dataset_metadata(tmp_path):
     assert record.n_samples == 1800
     assert record.samples_per_hour == pytest.approx(18_000)
     assert record.workers == 4
+
+
+# --------------------------------------------------------------------------- #
+# Reading the curve.
+# --------------------------------------------------------------------------- #
+
+
+def test_slope_is_points_of_success_per_doubling():
+    """A synthetic curve rising exactly 5 points per doubling must fit as 5."""
+    from isaacgrasp.scaling import fit_log_trend
+
+    samples = [1000, 2000, 4000, 8000, 16000]
+    rates = [0.30 + 0.05 * i for i in range(5)]
+    trend = fit_log_trend(samples, rates)
+    assert trend["slope_per_doubling_pp"] == pytest.approx(5.0, abs=1e-9)
+    assert trend["r_squared"] == pytest.approx(1.0, abs=1e-9)
+    assert trend["n_points"] == 5
+
+
+def test_a_flat_curve_has_a_flat_slope_and_no_projection():
+    from isaacgrasp.scaling import fit_log_trend, samples_to_reach
+
+    trend = fit_log_trend([1000, 2000, 4000], [0.5, 0.5, 0.5])
+    assert trend["slope_per_doubling_pp"] == pytest.approx(0.0, abs=1e-9)
+    assert samples_to_reach(trend, 0.75) == float("inf")
+
+
+def test_a_falling_curve_never_reaches_the_target():
+    from isaacgrasp.scaling import fit_log_trend, samples_to_reach
+
+    trend = fit_log_trend([1000, 2000, 4000], [0.6, 0.55, 0.5])
+    assert trend["slope_per_doubling_pp"] < 0
+    assert samples_to_reach(trend, 0.75) == float("inf")
+
+
+def test_projection_inverts_the_fit():
+    """Feeding the fit's own prediction back must return the size it came from."""
+    from isaacgrasp.scaling import fit_log_trend, samples_to_reach
+
+    samples = [1000, 2000, 4000, 8000]
+    rates = [0.30 + 0.05 * i for i in range(4)]
+    trend = fit_log_trend(samples, rates)
+    # The fit passes through 0.45 at 8000 samples, so asking where it reaches
+    # 0.45 must give 8000 back.
+    assert samples_to_reach(trend, 0.45) == pytest.approx(8000, rel=1e-6)
+
+
+def test_a_single_point_cannot_be_fitted():
+    from isaacgrasp.scaling import fit_log_trend
+
+    trend = fit_log_trend([1000], [0.5])
+    assert trend["n_points"] == 1
+    assert trend["slope_per_doubling_pp"] != trend["slope_per_doubling_pp"]  # NaN
+
+
+def test_read_curve_labels_the_extrapolation(result):
+    """The projection must never appear without the word extrapolation."""
+    from isaacgrasp.scaling import read_curve
+
+    reading = read_curve(result)
+    assert reading["measured_range"] == [384, 6144]
+    assert reading["trends"]["held_out_success"]["slope_per_doubling_pp"] > 0
+    extrapolation = reading["extrapolation"]
+    assert "Extrapolated" in extrapolation["note"]
+    assert "not a measurement" in extrapolation["note"].lower()
+    assert extrapolation["projected_samples"] > 6144
