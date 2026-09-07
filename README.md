@@ -30,12 +30,14 @@ sharper claim than the original made.
 
 ### The control, re-run unchanged
 
-It does not depend on training data, so it should reproduce the original study. This is the first number to read: if it had come out different, something in the environment had moved and nothing else here would be trustworthy.
+The heuristic does not depend on training data, so it is the check that the environment still is what it was. It is the first number to read.
 
 | | this run | original study |
 |---|---|---|
-| Heuristic, held-out categories | **75.5%** | 75.3% |
-| Heuristic, seen categories | 90.5% | 88.3% |
+| Heuristic, held-out categories | **79.5%** (n=1500, 95% CI 77.3% to 81.4%) | 75.3% (n=89) |
+| Heuristic, seen categories | 90.5% (n=1500) | 88.3% (n=111) |
+
+**The original's held-out control was underpowered.** Its 75.3% came from 89 held-out trials, a 95% interval of roughly 65% to 83%. Measured here on 1500 trials of the same scenes with the same unchanged policy, it is 79.5%. The two are consistent, but they are not the same number, and the bar the learned policy has to clear is the more precise one.
 
 ### The curve, on MuJoCo-generated data
 
@@ -43,31 +45,43 @@ Same architecture, same training loop, 12 epochs at 112 px at every point. Train
 
 | training scenes | labelled grasps | seen | held-out | gap | angle error (held-out) |
 |---|---|---|---|---|---|
-| 128 | 384 | 58.5% | 42.0% | 16.5 pp | 46.5 deg |
-| 256 | 768 | 70.0% | 48.0% | 22.0 pp | 46.8 deg |
-| 512 | 1,536 | 70.5% | 42.0% | 28.5 pp | 44.6 deg |
-| 1,024 | 3,072 | 78.0% | 52.0% | 26.0 pp | 43.6 deg |
-| 2,048 | 6,144 | 72.0% | 44.0% | 28.0 pp | 45.1 deg |
+| 128 | 384 | 57.7% | 43.5% | 14.2 pp | 46.5 deg |
+| 256 | 768 | 69.5% | 48.5% | 21.1 pp | 46.8 deg |
+| 512 | 1,536 | 69.8% | 44.7% | 25.1 pp | 44.6 deg |
+| 1,024 | 3,072 | 77.9% | 51.9% | 26.1 pp | 43.6 deg |
+| 2,048 | 6,144 | 69.4% | 48.4% | 21.0 pp | 45.1 deg |
 
-n = 200 evaluation episodes per split, on the original held-out scenes. The 95% intervals are about plus or minus 7 points, so adjacent points are not individually distinguishable; the trend is the readable part.
+n = 1500 evaluation episodes per split, on the original held-out scenes, giving a 95% interval of about plus or minus 2.5 points on each. The trend is the readable part, not any single pair of adjacent points.
 
 ### What the curve says
 
 Over a 16x range in training data, fitting rate against log2(samples):
 
-| quantity | slope per doubling | r-squared |
-|---|---|---|
-| Seen-category success | +3.50 pp | 0.61 |
-| Held-out success | +0.80 pp | 0.09 |
-| Held-out orientation error | -0.60 deg | 0.51 |
+| quantity | slope per doubling | 95% interval | r-squared |
+|---|---|---|---|
+| Seen-category success | +3.17 pp | -2.84 to +9.18 | 0.48 |
+| Held-out success | +1.31 pp | -1.70 to +4.33 | 0.39 |
+| Held-out orientation error | -0.60 deg | -1.68 to +0.48 | 0.51 |
 
-Seen-category success rises. Held-out success does not resolve: the fitted slope explains 9% of the scatter, so over this range it is not distinguishable from flat. It moved from 42.0% to 44.0% against the heuristic's 75.5%, and the gap between seen and held-out went from 16.5 to 28.0 points.
+Seen-category success rises. Held-out success is **consistent with flat**: its 95% interval runs from -1.70 to +4.33 points per doubling, which contains zero. The useful half of that is the upper end. Whatever gain more data buys on unseen shapes, over this range it is **at most 4.33 points per doubling**, and closing the 31 point distance to the heuristic at that rate would take about 7 further doublings. Held-out success moved from 43.5% to 48.4% against the heuristic's 79.5%, and the gap between seen and held-out went from 14.2 to 21.0 points.
 
 Orientation error on held-out shapes stayed within 1.8 degrees of the 45 that random guessing scores, at every size measured, and on seen categories it did not improve either (43.7 degrees at the smallest size, 47.8 at the largest). Scored on 59 seen and 167 held-out grasps per point, over the elongated objects where an angle is determinate at all.
 
 The sharper measurement is the **bin spread**: the range of predicted grasp quality across the twelve gripper angles at the pixel the network chose. It falls from 0.41 to 0.05 across the curve. The first value is an undertrained network's noise rather than real angle sensitivity, so the reading is that the network's quality estimate becomes progressively **less** sensitive to how the gripper is turned as it sees more data, settling near the 0.070 the original measured at roughly 27,000 samples. Predicting the angle-marginal success rate is a minimum of this loss, and more data finds it more reliably.
 
-### What this arm does not settle
+### Where the scatter comes from
+
+Two things move a point off the line, and they call for different fixes.
+
+| source | standard deviation |
+|---|---|
+| Evaluation, binomial at n=1500 per split | 1.29 pp |
+| Training, at a fixed dataset size | 2.70 pp |
+| Total scatter about the fit | 2.99 pp |
+
+**Training noise dominates.** The evaluation term is known exactly from the episode count; the training term is what is left, and covers initialisation, data order and augmentation draws at a fixed dataset size. At 200 episodes per split the evaluation term was 3.52 points and dominated; at 1500 it no longer does, so more episodes would now be wasted money and the next spend belongs on repeated runs or more sizes.
+
+It is worth putting that next to the trend: retraining the same size moves held-out success by about 2.7 points, and doubling the data moves it by 1.31. The run-to-run noise is larger than the effect being measured, which is the honest reason this curve is hard to resolve and not a matter of needing a bigger simulator.
 
 **It tops out below the study it follows up.** The largest point here is 6,144 labelled grasps. The original trained on roughly 27,000 and reported 58.4% held-out, which is above every point on this curve. So the curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 16x range the held-out gap did not close and orientation did not leave chance.
 

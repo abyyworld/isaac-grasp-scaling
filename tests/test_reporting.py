@@ -232,3 +232,51 @@ def test_two_points_cannot_support_an_interval():
     trend = fit_log_trend([1000, 2000], [0.30, 0.40])
     assert trend["degrees_of_freedom"] == 0
     assert trend["slope_stderr_pp"] != trend["slope_stderr_pp"]  # NaN
+
+
+# --------------------------------------------------------------------------- #
+# Where the scatter comes from.
+# --------------------------------------------------------------------------- #
+
+
+def _points_with_n(rates, n):
+    return [{"train_samples": s, "unseen": {"rate": r, "n": n}}
+            for s, r in zip([384, 768, 1536, 3072, 6144], rates, strict=True)]
+
+
+def test_scatter_splits_into_evaluation_and_training_noise():
+    from isaacgrasp.scaling import decompose_scatter, fit_log_trend
+
+    rates = [0.435, 0.485, 0.447, 0.519, 0.484]
+    trend = fit_log_trend([384, 768, 1536, 3072, 6144], rates)
+    scatter = decompose_scatter(_points_with_n(rates, 1500), trend)
+    # Variances add, so each part is smaller than the total.
+    assert scatter["evaluation_sd_pp"] < scatter["residual_sd_pp"]
+    assert scatter["training_sd_pp"] < scatter["residual_sd_pp"]
+    combined = (scatter["evaluation_sd_pp"] ** 2 + scatter["training_sd_pp"] ** 2) ** 0.5
+    assert combined == pytest.approx(scatter["residual_sd_pp"], rel=1e-6)
+
+
+def test_more_episodes_shrink_only_the_evaluation_term():
+    """The point of the decomposition: it says when more episodes stop helping."""
+    from isaacgrasp.scaling import decompose_scatter, fit_log_trend
+
+    rates = [0.435, 0.485, 0.447, 0.519, 0.484]
+    trend = fit_log_trend([384, 768, 1536, 3072, 6144], rates)
+    small = decompose_scatter(_points_with_n(rates, 200), trend)
+    large = decompose_scatter(_points_with_n(rates, 1500), trend)
+    assert large["evaluation_sd_pp"] < small["evaluation_sd_pp"]
+    # The residual is a property of the points, so it does not move.
+    assert large["residual_sd_pp"] == pytest.approx(small["residual_sd_pp"])
+    assert large["training_sd_pp"] > small["training_sd_pp"]
+
+
+def test_scatter_explained_entirely_by_evaluation_leaves_no_training_term():
+    """A negative variance estimate must floor at zero, not produce a NaN."""
+    from isaacgrasp.scaling import decompose_scatter, fit_log_trend
+
+    rates = [0.40, 0.45, 0.50, 0.55, 0.60]  # exactly linear, so no residual at all
+    trend = fit_log_trend([384, 768, 1536, 3072, 6144], rates)
+    scatter = decompose_scatter(_points_with_n(rates, 50), trend)
+    assert scatter["training_sd_pp"] == 0.0
+    assert scatter["dominant_noise_source"] == "evaluation"

@@ -327,14 +327,68 @@ def fit_log_trend(samples: list[int], rates: list[float]) -> dict[str, float]:
             slope_ci = [float(slope - _t95(degrees_of_freedom) * slope_stderr),
                         float(slope + _t95(degrees_of_freedom) * slope_stderr)]
 
+    residual_sd = (float(np.sqrt(ss_residual / degrees_of_freedom))
+                   if degrees_of_freedom > 0 else float("nan"))
     return {
         "slope_per_doubling_pp": float(slope),
         "slope_stderr_pp": slope_stderr,
         "slope_ci95_pp": slope_ci,
         "intercept_pp": float(intercept),
+        "residual_sd_pp": residual_sd,
         "r_squared": 1.0 - ss_residual / ss_total if ss_total > 0 else float("nan"),
         "n_points": len(samples),
         "degrees_of_freedom": degrees_of_freedom,
+    }
+
+
+def decompose_scatter(points: list[dict[str, Any]], trend: dict[str, float],
+                      split: str = "unseen") -> dict[str, float]:
+    """Split the points' scatter about the fit into evaluation and training noise.
+
+    Two independent things move a point off the line. The evaluation is a finite
+    sample of scenes, and its contribution is known exactly from the binomial:
+    ``sqrt(p(1-p)/n)``. Whatever is left over is the training run itself, which
+    at a fixed dataset size still varies with initialisation, data order and
+    augmentation draws.
+
+    Knowing which one dominates decides what to spend the next hour on. While
+    evaluation dominates, more episodes help. Once training dominates, more
+    episodes are wasted and the money goes on repeated runs or more sizes. This
+    study crossed that line: at 200 episodes per split evaluation dominated, and
+    at 1,500 it no longer does.
+
+    Variances add, so the training term is the difference of squares, floored at
+    zero because sampling noise can make the estimate come out negative.
+    """
+    import numpy as np
+
+    residual_sd = trend.get("residual_sd_pp", float("nan"))
+    evaluation_variances = []
+    for point in points:
+        measurement = point.get(split, {})
+        # A point written before the episode count was recorded contributes
+        # nothing rather than crashing the whole reading.
+        if "rate" not in measurement or not measurement.get("n"):
+            continue
+        rate = float(measurement["rate"])
+        n = int(measurement["n"])
+        evaluation_variances.append(1e4 * rate * (1.0 - rate) / n)
+    evaluation_sd = float(np.sqrt(np.mean(evaluation_variances))) if evaluation_variances         else float("nan")
+
+    training_variance = residual_sd ** 2 - evaluation_sd ** 2
+    training_sd = float(np.sqrt(training_variance)) if training_variance > 0 else 0.0
+    dominant = ("evaluation" if evaluation_sd > training_sd else "training")
+    return {
+        "residual_sd_pp": residual_sd,
+        "evaluation_sd_pp": evaluation_sd,
+        "training_sd_pp": training_sd,
+        "dominant_noise_source": dominant,
+        "note": (
+            "Evaluation noise is the binomial term for the episode count used. "
+            "Training noise is what is left after removing it, and covers "
+            "initialisation, data order and augmentation draws at a fixed dataset "
+            "size. More evaluation episodes only help while evaluation dominates."
+        ),
     }
 
 
@@ -392,7 +446,11 @@ def read_curve(result: dict[str, Any]) -> dict[str, Any]:
         "held_out_angle_error": fit_log_trend(
             samples, [p["angle"]["angle_error_deg_heldout"] / 100.0 for p in points]),
     }
-    out: dict[str, Any] = {"trends": trends, "measured_range": [samples[0], samples[-1]]}
+    out: dict[str, Any] = {
+        "trends": trends,
+        "measured_range": [samples[0], samples[-1]],
+        "scatter": decompose_scatter(points, trends["held_out_success"], "unseen"),
+    }
 
     control = result.get("controls", {}).get("heuristic", {}).get("unseen")
     if control:

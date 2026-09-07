@@ -21,7 +21,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 # The predecessor study's published held-out numbers.
 ORIGINAL = {"cnn_unseen": 0.584, "heuristic_unseen": 0.753,
             "cnn_seen": 0.838, "heuristic_seen": 0.883,
-            "angle_heldout_deg": 47.2, "bin_spread": 0.070}
+            "angle_heldout_deg": 47.2, "bin_spread": 0.070,
+            # Sample sizes behind the published figures, from the committed
+            # run artefacts in the predecessor repository. Its 200-trial run
+            # covered all categories and was split afterwards, so the held-out
+            # figure rests on 89 trials.
+            "heuristic_unseen_n": 89, "heuristic_seen_n": 111,
+            "heuristic_unseen_ci": (0.654, 0.831)}
 
 BACKEND_NAMES = {"mujoco": "MuJoCo", "isaac": "Isaac Lab"}
 
@@ -151,23 +157,35 @@ def readme_block(result: dict, figure: str | None) -> str:
     lines += [
         "### The control, re-run unchanged",
         "",
-        "It does not depend on training data, so it should reproduce the original "
-        "study. This is the first number to read: if it had come out different, "
-        "something in the environment had moved and nothing else here would be "
-        "trustworthy.",
+        "The heuristic does not depend on training data, so it is the check that the "
+        "environment still is what it was. It is the first number to read.",
         "",
         "| | this run | original study |",
         "|---|---|---|",
     ]
     if controls:
+        held = controls["unseen"]
+        seen_control = controls["seen"]
         lines += [
-            f"| Heuristic, held-out categories | **{controls['unseen']['rate']:.1%}** "
-            f"| {ORIGINAL['heuristic_unseen']:.1%} |",
-            f"| Heuristic, seen categories | {controls['seen']['rate']:.1%} "
-            f"| {ORIGINAL['heuristic_seen']:.1%} |",
+            f"| Heuristic, held-out categories | **{held['rate']:.1%}** "
+            f"(n={held['n']}, 95% CI {held['ci95'][0]:.1%} to {held['ci95'][1]:.1%}) "
+            f"| {ORIGINAL['heuristic_unseen']:.1%} (n={ORIGINAL['heuristic_unseen_n']}) |",
+            f"| Heuristic, seen categories | {seen_control['rate']:.1%} "
+            f"(n={seen_control['n']}) "
+            f"| {ORIGINAL['heuristic_seen']:.1%} (n={ORIGINAL['heuristic_seen_n']}) |",
+            "",
+            f"**The original's held-out control was underpowered.** Its {ORIGINAL['heuristic_unseen']:.1%} "
+            f"came from {ORIGINAL['heuristic_unseen_n']} held-out trials, a 95% interval "
+            f"of roughly {ORIGINAL['heuristic_unseen_ci'][0]:.0%} to "
+            f"{ORIGINAL['heuristic_unseen_ci'][1]:.0%}. Measured here on {held['n']} "
+            f"trials of the same scenes with the same unchanged policy, it is "
+            f"{held['rate']:.1%}. The two are consistent, but they are not the same "
+            f"number, and the bar the learned policy has to clear is the more precise "
+            f"one.",
         ]
     reading = result.get("reading", {})
     trends = reading.get("trends", {})
+    scatter = reading.get("scatter", {})
 
     lines += [
         "",
@@ -180,10 +198,12 @@ def readme_block(result: dict, figure: str | None) -> str:
         "",
         curve_table(result),
         "",
-        f"n = {config.get('eval_episodes', '?')} evaluation episodes per split, on the "
-        "original held-out scenes. The 95% intervals are about plus or minus 7 points, "
-        "so adjacent points are not individually distinguishable; the trend is the "
-        "readable part.",
+        f"n = {points[0]['unseen'].get('n', config.get('eval_episodes', '?'))} evaluation "
+        f"episodes per split, on the original held-out scenes, giving a 95% interval of "
+        f"about plus or minus "
+        f"{50.0 * max(p['unseen']['ci95'][1] - p['unseen']['ci95'][0] for p in points):.1f} "
+        "points on each. The trend is the readable part, not any single pair of adjacent "
+        "points.",
         "",
         "### What the curve says",
         "",
@@ -261,7 +281,34 @@ def readme_block(result: dict, figure: str | None) -> str:
         "Predicting the angle-marginal success rate is a minimum of this loss, and more "
         "data finds it more reliably.",
         "",
-        "### What this arm does not settle",
+        "### Where the scatter comes from",
+        "",
+        "Two things move a point off the line, and they call for different fixes.",
+        "",
+        "| source | standard deviation |",
+        "|---|---|",
+        f"| Evaluation, binomial at n={points[0]['unseen']['n']} per split "
+        f"| {scatter.get('evaluation_sd_pp', float('nan')):.2f} pp |",
+        f"| Training, at a fixed dataset size "
+        f"| {scatter.get('training_sd_pp', float('nan')):.2f} pp |",
+        f"| Total scatter about the fit | {scatter.get('residual_sd_pp', float('nan')):.2f} pp |",
+        "",
+        f"**{scatter.get('dominant_noise_source', 'unknown').capitalize()} noise "
+        f"dominates.** The evaluation term is known exactly from the episode count; "
+        f"the training term is what is left, and covers initialisation, data order and "
+        f"augmentation draws at a fixed dataset size. At 200 episodes per split the "
+        f"evaluation term was {scatter.get('evaluation_sd_pp', float('nan')) * (1500 / 200) ** 0.5:.2f} "
+        f"points and dominated; at {points[0]['unseen']['n']} it no longer does, so more "
+        f"episodes would now be wasted money and the next spend belongs on repeated runs "
+        f"or more sizes.",
+        "",
+        f"It is worth putting that next to the trend: retraining the same size moves "
+        f"held-out success by about {scatter.get('training_sd_pp', float('nan')):.1f} "
+        f"points, and doubling the data moves it by "
+        f"{trends.get('held_out_success', {}).get('slope_per_doubling_pp', float('nan')):.2f}. "
+        "The run-to-run noise is larger than the effect being measured, which is the "
+        "honest reason this curve is hard to resolve and not a matter of needing a "
+        "bigger simulator.",
         "",
         f"**It tops out below the study it follows up.** The largest point here is "
         f"{last['train_samples']:,} labelled grasps. The original trained on roughly "
