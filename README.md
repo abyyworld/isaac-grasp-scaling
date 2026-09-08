@@ -135,7 +135,7 @@ This matters more than usual here, so it is at the top rather than buried.
 | Isaac Lab backend, its own logic | **executed** against a stub Isaac API |
 | Isaac Lab backend, in contact with the real simulator | **never executed** |
 
-175 tests, all passing without a GPU.
+183 tests, all passing without a GPU. The count is stated because the table above says what has been run, and that is only meaningful next to how much of it is covered.
 
 The Isaac Lab backend was written on a machine with no NVIDIA GPU, where Isaac
 Sim cannot be installed. `src/isaacgrasp/backends/isaac_backend.py` carries that
