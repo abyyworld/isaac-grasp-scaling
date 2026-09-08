@@ -44,9 +44,26 @@ jobs:
       - name: Lint
         run: ruff check src scripts tests
 
+      - name: Check out simgrasp at the pinned commit
+        # The MuJoCo Menagerie pin lives in simgrasp's scripts/, which the wheel
+        # does not ship. Without a checkout the parity test has nothing to
+        # compare against and skips, so this clones the same commit that
+        # pyproject.toml already installs and points the test at it.
+        run: |
+          sha=$(python -c "import re,pathlib; \
+            print(re.search(r'Simulated-grasping\.git@([0-9a-f]{40})', \
+            pathlib.Path('pyproject.toml').read_text()).group(1))")
+          echo "simgrasp pinned at ${sha}"
+          mkdir -p /tmp/simgrasp && git -C /tmp/simgrasp init -q
+          git -C /tmp/simgrasp remote add origin \
+            https://github.com/abyyworld/Simulated-grasping.git
+          git -C /tmp/simgrasp fetch -q --depth 1 origin "${sha}"
+          git -C /tmp/simgrasp checkout -q FETCH_HEAD
+
       - name: Test
         env:
           MUJOCO_GL: osmesa
+          SIMGRASP_CHECKOUT: /tmp/simgrasp
         run: pytest tests/ -q
 
       - name: Verify the install by running it

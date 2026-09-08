@@ -21,22 +21,81 @@ from isaacgrasp import assets
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_the_menagerie_commit_matches_simgrasp():
-    """Different commit, different gripper geometry, incomparable numbers.
+def _simgrasp_checkout() -> Path | None:
+    """A simgrasp checkout on this machine, or None if simgrasp came from a wheel.
 
-    The pin is read out of simgrasp's own fetch script when that script is
-    available (a checkout or an editable install) and skipped when it is not,
-    rather than duplicating the hash in a second place that could drift.
+    ``simgrasp.paths.REPO_ROOT`` walks up from its own file for a pyproject.toml
+    beside a ``src/``. From site-packages that walk does not stop at the virtual
+    environment: it keeps going and lands on whatever project is *using*
+    simgrasp, which is this one. This repository has a ``scripts/fetch_assets.py``
+    of its own, so the walk found our file and the pin was compared against
+    itself. Anything returned here has to look like simgrasp and not like us.
     """
     import simgrasp.paths
 
-    candidate = Path(simgrasp.paths.REPO_ROOT) / "scripts" / "fetch_assets.py"
-    if not candidate.exists():
+    candidates = []
+    override = os.environ.get("SIMGRASP_CHECKOUT")
+    if override:
+        candidates.append(Path(override))
+    candidates.append(Path(simgrasp.paths.REPO_ROOT))
+
+    for root in candidates:
+        root = root.resolve()
+        if root == REPO_ROOT:
+            continue
+        if (root / "src" / "simgrasp" / "paths.py").is_file() and \
+                (root / "scripts" / "fetch_assets.py").is_file():
+            return root
+    return None
+
+
+def test_the_menagerie_commit_matches_simgrasp():
+    """Different commit, different gripper geometry, incomparable numbers.
+
+    The pin is read out of simgrasp's own fetch script when a checkout is on
+    this machine, rather than duplicating the hash in a second place that could
+    drift. simgrasp ships only ``src/``, so from a pinned git install the script
+    is genuinely absent and there is nothing to compare against: point
+    ``SIMGRASP_CHECKOUT`` at a checkout to make this run.
+    """
+    checkout = _simgrasp_checkout()
+    if checkout is None:
         pytest.skip("simgrasp is not installed from a checkout, so its pin is not readable")
-    source = candidate.read_text()
+
+    source = (checkout / "scripts" / "fetch_assets.py").read_text()
     assert assets.MENAGERIE_COMMIT in source, (
         "this repository pins a different MuJoCo Menagerie commit than simgrasp does, "
         "so the two would use different robot geometry")
+
+
+def test_this_repository_is_never_mistaken_for_the_simgrasp_checkout():
+    """The bug the check above had: it compared our pin against our own file.
+
+    A comparison that can only ever agree with itself is worse than no
+    comparison, because it reads in the report as a pass.
+    """
+    assert _simgrasp_checkout() != REPO_ROOT
+
+
+def test_the_pin_is_written_down_in_exactly_one_place():
+    """A second copy of the hash is a second thing to forget to update.
+
+    ``scripts/fetch_assets.py`` imports the constant rather than repeating it,
+    and this is what keeps that true.
+    """
+    home = REPO_ROOT / "src" / "isaacgrasp" / "assets.py"
+    strays = [
+        str(path.relative_to(REPO_ROOT))
+        for path in REPO_ROOT.rglob("*")
+        if path.is_file()
+        and path != home
+        and path.suffix in {".py", ".md", ".toml", ".sh", ".ipynb"}
+        and ".venv" not in path.parts
+        and assets.MENAGERIE_COMMIT in path.read_text(errors="ignore")
+    ]
+    assert not strays, (
+        "the Menagerie commit is hardcoded outside isaacgrasp.assets, in "
+        f"{strays}; import MENAGERIE_COMMIT instead so there is one copy to update")
 
 
 def test_configure_respects_an_explicit_setting(monkeypatch):

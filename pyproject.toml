@@ -39,6 +39,12 @@ filterwarnings = ["ignore::DeprecationWarning"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+# The Kaggle notebook is written to be read and run in a browser, in cell order:
+# shell magics, and a dataset path the reader edits sitting above the imports on
+# purpose. CI lints src, scripts and tests; excluding notebooks here is what
+# makes a bare `ruff check .` agree with CI instead of reporting eight
+# disagreements about a file neither of them checks.
+exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

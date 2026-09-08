@@ -137,7 +137,7 @@ This matters more than usual here, so it is at the top rather than buried.
 | Cloud provisioning gate, its refusal logic | **tested** (21 tests, against stubbed GPU, disk and Vulkan probes) |
 | Cloud provisioning gate, on a real rented box | **never executed** |
 
-204 tests, all passing without a GPU. The count is stated because the table above says what has been run, and that is only meaningful next to how much of it is covered.
+206 tests, all passing without a GPU. The count is stated because the table above says what has been run, and that is only meaningful next to how much of it is covered.
 
 The Isaac Lab backend was written on a machine with no NVIDIA GPU, where Isaac
 Sim cannot be installed. `src/isaacgrasp/backends/isaac_backend.py` carries that
