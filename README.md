@@ -309,7 +309,8 @@ runs and CI both passed, because both ran against a working tree that still had
 the files. The package is gone from history, so it was reconstructed from the
 committed callers and the committed tests; all 205 upstream tests pass against
 the reconstruction. Fixed in
-[abyyworld/Simulated-grasping#claude/restore-data-package](https://github.com/abyyworld/Simulated-grasping/tree/claude/restore-data-package).
+[abyyworld/Simulated-grasping@379e4ca](https://github.com/abyyworld/Simulated-grasping/commit/379e4cad767cbea029a8c5e0031b414861c517ff),
+now on that repository's default branch, which is also the commit this one pins.
 
 **This repository segfaulted on its first real test run.** MuJoCo's OSMesa
 software renderer and the Triton compiler bundled in the CUDA PyTorch wheel each
