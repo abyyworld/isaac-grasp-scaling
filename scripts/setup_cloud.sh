@@ -35,10 +35,13 @@ check_gpu() {
   log "GPU: ${name} (driver ${driver})"
 
   # Isaac Sim renders through RTX, so it needs ray-tracing cores. Pascal (P100,
-  # GTX 10xx) and Volta (V100) have none and will fail at the renderer, not at
-  # install time, which is a slow and confusing way to find out.
+  # GTX 10xx), Volta (V100) and the datacentre compute dies (A100 and A30 are
+  # GA100, H100 and H200 are GH100) have none and will fail at the renderer, not
+  # at install time, which is a slow and confusing way to find out. The A100 is
+  # the trap here: it is the most expensive card on the list and the one a
+  # marketplace is most likely to offer you.
   case "${name}" in
-    *P100*|*K80*|*V100*|*GTX\ 10*|*GTX\ 9*)
+    *P100*|*K80*|*V100*|*GTX\ 10*|*GTX\ 9*|*A100*|*A30*|*H100*|*H200*)
       die "${name} has no RT cores. Isaac Sim's renderer requires them, and this
            project needs camera output, so physics-only is not enough. Rent an
            RTX card instead: see docs/setup-cloud.md." ;;

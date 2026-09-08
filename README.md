@@ -134,8 +134,10 @@ This matters more than usual here, so it is at the top rather than buried.
 | Oracle grasp, success criterion, batched collector | **tested against the originals** |
 | Isaac Lab backend, its own logic | **executed** against a stub Isaac API |
 | Isaac Lab backend, in contact with the real simulator | **never executed** |
+| Cloud provisioning gate, its refusal logic | **tested** (21 tests, against stubbed GPU, disk and Vulkan probes) |
+| Cloud provisioning gate, on a real rented box | **never executed** |
 
-183 tests, all passing without a GPU. The count is stated because the table above says what has been run, and that is only meaningful next to how much of it is covered.
+204 tests, all passing without a GPU. The count is stated because the table above says what has been run, and that is only meaningful next to how much of it is covered.
 
 The Isaac Lab backend was written on a machine with no NVIDIA GPU, where Isaac
 Sim cannot be installed. `src/isaacgrasp/backends/isaac_backend.py` carries that
@@ -175,7 +177,7 @@ make scaling  DATA=data/mj18k OUT=results/scaling/mujoco
 On a rented RTX box, the Isaac arm (see [docs/setup-cloud.md](docs/setup-cloud.md)):
 
 ```bash
-bash scripts/setup_cloud.sh --check     # refuses a GPU with no RT cores
+bash scripts/setup_cloud.sh --check     # refuses a GPU with no RT cores, A100 and H100 included
 bash scripts/setup_cloud.sh
 python scripts/check_setup.py --isaac   # the gate. Read its output.
 make collect BACKEND=isaac SCENES=200000 NUM_ENVS=1024 DATA=data/isaac600k
@@ -189,7 +191,9 @@ affordable:
 * **Dataset generation** needs an RTX-class GPU with working Vulkan and about
   30 GB of disk. A spot RTX 4090 on Vast.ai or RunPod is a few dollars for the
   whole run. GCP's free trial and the GitHub Student Pack's Azure credit both
-  cover it.
+  cover it. Paying more does not help: the A100 and the H100 are compute dies
+  with no RT cores, so they install Isaac Sim happily and then fail at the
+  renderer. `setup_cloud.sh --check` refuses them.
 * **Training** is ordinary PyTorch and runs free on Kaggle's T4 x2, which is 30
   hours a week. [`notebooks/kaggle_scaling.ipynb`](notebooks/kaggle_scaling.ipynb)
   is ready to run: attach your dataset, set the accelerator, go. That is where the
