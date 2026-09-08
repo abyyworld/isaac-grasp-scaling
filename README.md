@@ -199,9 +199,13 @@ affordable:
   is ready to run: attach your dataset, set the accelerator, go. That is where the
   settings the original study said it needed and could not afford belong, namely
   30 epochs at 224 px with ImageNet initialisation.
-* **Kaggle cannot run Isaac Sim.** Its P100 has no RT cores at all; its T4 has
-  them but is not on NVIDIA's supported list, and the session disk and 12-hour
-  limit sit badly against a 30 GB install that does not persist.
+* **Kaggle probably cannot run Isaac Sim.** Its P100 has no RT cores at all; its
+  T4 has them but is not on NVIDIA's supported list, and the session disk and
+  12-hour limit sit badly against a 30 GB install that does not persist. That
+  said, nobody has actually tried, so
+  [`notebooks/kaggle_isaac_gate.ipynb`](notebooks/kaggle_isaac_gate.ipynb) does:
+  it names the card, measures the disk, probes the Vulkan ICD and then runs the
+  six-stage gate, for nothing but an hour of free quota.
 * **The MuJoCo control arm and every evaluation** are CPU only.
 
 Full detail, including the exact provisioning steps, in

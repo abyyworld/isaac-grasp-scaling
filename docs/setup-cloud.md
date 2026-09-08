@@ -41,9 +41,14 @@ Kaggle offers **T4 x2**, **P100** and **TPU v5e-8**. For this project:
   list, the session disk and the 12-hour session limit sit awkwardly against a
   30 GB install that does not persist, and a Kaggle image is not built to expose
   Vulkan. **This has not been tested here**, so treat it as unpromising rather
-  than as proven impossible. If you want to try it, the gate is
-  `python scripts/check_setup.py --isaac --num-envs 4`, and it will tell you
-  within a few minutes which stage fails.
+  than as proven impossible. There is a notebook that settles it for nothing:
+  [`notebooks/kaggle_isaac_gate.ipynb`](../notebooks/kaggle_isaac_gate.ipynb)
+  checks the card, the disk and the Vulkan ICD, installs Isaac Sim at the same
+  pins `setup_cloud.sh` uses, and runs the six-stage gate at `--num-envs 4`.
+  About an hour of the free weekly quota. If it dies at Vulkan, this bullet
+  should be rewritten as a flat no; if it reaches `isaac:object geometry`, that
+  is a real finding about the port and a T4 answers it as well as a 4090
+  would.
 * **T4 x2 for training: yes, and this is the useful part.** There is a ready notebook at
   [`notebooks/kaggle_scaling.ipynb`](../notebooks/kaggle_scaling.ipynb): attach your dataset,
   set the accelerator to T4 x2, run it. Training the network
