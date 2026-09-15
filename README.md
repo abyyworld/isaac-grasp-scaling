@@ -8,8 +8,8 @@ where a fully-convolutional grasp-quality network trained on self-supervised
 grasp attempts in MuJoCo **lost to a hand-written depth heuristic** on unseen
 objects, 58.4% against 75.3%. An ablation traced the cause to the network
 learning grasp *position* but not grasp *orientation*: mean angle error against
-the oracle was 47.2 degrees on held-out shapes, worse than the 45 degrees of a
-random guess.
+the oracle stayed at chance on held-out shapes, 47.2 degrees against the 45 of
+a random guess.
 
 The obvious objection is that the dataset was too small. That objection is
 testable. This repository ports the task to NVIDIA Isaac Lab, which runs
@@ -74,7 +74,7 @@ Falling is not the same as good. Held-out orientation error goes from 46.5 degre
 
 The seen-category figure does not resolve at all (43.7 degrees at the smallest size, 51.0 at the largest, wandering in between). It is scored on only 59 grasps per point against 167 for held-out, because the determinacy filter removes the rotationally symmetric shapes and most of the training categories are symmetric. That scatter is the measurement, not the model, and it is why the held-out figure is the one quoted.
 
-The sharper measurement is the **bin spread**: the range of predicted grasp quality across the twelve gripper angles at the pixel the network chose. It falls from 0.41 to 0.07 across the curve. The first value is an undertrained network's noise rather than real angle sensitivity, so the reading is that the network's quality estimate becomes progressively **less** sensitive to how the gripper is turned as it sees more data, settling near the 0.070 the original measured at roughly 27,000 samples. Predicting the angle-marginal success rate is a minimum of this loss, and more data finds it more reliably.
+The sharper measurement is the **bin spread**: the range of predicted grasp quality across the twelve gripper angles at the pixel the network chose. It falls from 0.41 to 0.07 across the curve. The first value is an undertrained network's noise rather than real angle sensitivity, so the reading is that the network's quality estimate becomes progressively **less** sensitive to how the gripper is turned as it sees more data, settling near the 0.070 the original measured at roughly 15,000 samples. Predicting the angle-marginal success rate is a minimum of this loss, and more data finds it more reliably.
 
 ### Where the scatter comes from
 
@@ -113,7 +113,7 @@ Put that next to the effect it has to be measured against. Going from 384 labell
 
 ### What this arm does not settle
 
-**It tops out below the study it follows up.** The largest point here is 12,288 labelled grasps. The original trained on roughly 27,000 and reported 58.4% held-out, which is above every point on this curve. So the curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 32x range the held-out gap did not close and orientation did not leave chance.
+**It tops out below the study it follows up.** The largest point here is 12,288 labelled grasps. The original trained on roughly 15,000 and reported 58.4% held-out, which is above every point on this curve. The two scales are within a factor of 1.2 of each other, so this is not a curve that stops far short of its predecessor; it is one that climbs to almost the same place without closing the gap. The curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 32x range the held-out gap did not close and orientation did not leave chance.
 
 Reaching the original's scale, and the one to two orders of magnitude beyond it that the Isaac Lab port exists to make affordable, is the experiment this arm sets up rather than the one it performs. The Isaac backend has not been run.
 

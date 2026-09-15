@@ -27,7 +27,13 @@ ORIGINAL = {"cnn_unseen": 0.584, "heuristic_unseen": 0.753,
             # covered all categories and was split afterwards, so the held-out
             # figure rests on 89 trials.
             "heuristic_unseen_n": 89, "heuristic_seen_n": 111,
-            "heuristic_unseen_ci": (0.654, 0.831)}
+            "heuristic_unseen_ci": (0.654, 0.831),
+            # Its dataset size. The predecessor's docs/results.md records
+            # 13,482 training samples at val_fraction 0.1 split by episode,
+            # so the collected total is about 14,980 grasp attempts. Its
+            # dataset is named grasp15k_multi for that reason. Quoted as
+            # "roughly 15,000" everywhere, never as a hand-typed literal.
+            "dataset_samples": 14_980}
 
 BACKEND_NAMES = {"mujoco": "MuJoCo", "isaac": "Isaac Lab"}
 
@@ -163,7 +169,8 @@ def main() -> int:
             "",
             "Random guessing scores 45 degrees of orientation error. The original "
             f"study measured {ORIGINAL['angle_heldout_deg']:.1f} degrees on held-out "
-            "categories, which is worse than chance.",
+            "categories, which is at chance: the gap is smaller than the seed-to-seed "
+            "spread measured below.",
             "",
         ]
 
@@ -441,7 +448,8 @@ def readme_block(result: dict, figure: str | None,
         f"undertrained network's noise rather than real angle sensitivity, so the reading "
         f"is that the network's quality estimate becomes progressively **less** sensitive "
         f"to how the gripper is turned as it sees more data, settling near the "
-        f"{ORIGINAL['bin_spread']:.3f} the original measured at roughly 27,000 samples. "
+        f"{ORIGINAL['bin_spread']:.3f} the original measured at roughly "
+        f"{round(ORIGINAL['dataset_samples'], -3):,} samples. "
         "Predicting the angle-marginal success rate is a minimum of this loss, and more "
         "data finds it more reliably.",
         "",
@@ -480,9 +488,14 @@ def readme_block(result: dict, figure: str | None,
         "",
         f"**It tops out below the study it follows up.** The largest point here is "
         f"{last['train_samples']:,} labelled grasps. The original trained on roughly "
-        f"27,000 and reported {ORIGINAL['cnn_unseen']:.1%} held-out, which is above every "
-        f"point on this curve. So the curve evidently continues upward past where this arm "
-        f"reached, and nothing here shows that more data cannot help. What it shows is "
+        f"{round(ORIGINAL['dataset_samples'], -3):,} and reported "
+        f"{ORIGINAL['cnn_unseen']:.1%} held-out, which is above every point on this "
+        f"curve. The two scales are within a factor of "
+        f"{ORIGINAL['dataset_samples'] / last['train_samples']:.1f} of each other, so "
+        f"this is not a curve that stops far short of its predecessor; it is one that "
+        f"climbs to almost the same place without closing the gap. The curve evidently "
+        f"continues upward past where this arm reached, and nothing here shows that more "
+        f"data cannot help. What it shows is "
         f"that across a {last['train_samples'] / first['train_samples']:.0f}x range the "
         f"held-out gap did not close and orientation did not leave chance.",
         "",

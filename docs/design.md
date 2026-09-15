@@ -6,8 +6,8 @@ The predecessor study trained a fully-convolutional grasp-quality network on
 self-supervised grasp attempts in MuJoCo and lost to a hand-written depth
 heuristic on unseen objects, 58.4% against 75.3%. An ablation traced the cause
 to the network learning grasp position but not orientation: mean angle error
-against the oracle was 47.2 degrees on held-out categories, worse than the 45
-degrees of a random guess.
+against the oracle stayed at chance on held-out categories, 47.2 degrees against
+the 45 of a random guess.
 
 The obvious objection is that 15,000 attempts is simply too few. That objection
 is testable, and the test is a curve: success rate and orientation error against
