@@ -81,6 +81,22 @@ def record_from_dataset(dataset_dir: Path | str, hardware: str,
     )
 
 
+def caveat_for(rows: list[dict[str, Any]]) -> str:
+    """The caveat that matches how many backends are actually in hand.
+
+    With one backend measured there is no ratio, and a caveat about "the two
+    backends" invites the reader to believe a comparison that does not exist.
+    """
+    if len(rows) > 1:
+        return ("Rates are per machine, not per unit of hardware; the hardware "
+                "is recorded per row. Each backend was measured on the machine "
+                "it is actually run on, so this ratio mixes a software "
+                "difference with a hardware one.")
+    return ("Rates are per machine, not per unit of hardware; the hardware is "
+            "recorded per row. Only one backend has been measured, so there is "
+            "no cross-backend ratio here yet.")
+
+
 def compare(records: list[ThroughputRecord]) -> dict[str, Any]:
     """Rates side by side, with the speedup relative to the slowest run."""
     if not records:
@@ -95,12 +111,7 @@ def compare(records: list[ThroughputRecord]) -> dict[str, Any]:
     return {
         "records": rows,
         "baseline_samples_per_hour": baseline,
-        "caveat": (
-            "Rates are per machine, not per unit of hardware. The two backends were "
-            "measured on different machines because that is how each one is actually "
-            "run, so this ratio mixes a software difference with a hardware one. The "
-            "hardware is recorded per row."
-        ),
+        "caveat": caveat_for(rows),
     }
 
 
@@ -108,17 +119,24 @@ def format_table(comparison: dict[str, Any]) -> str:
     rows = comparison.get("records", [])
     if not rows:
         return "no throughput measurements recorded"
-    lines = [
-        f"  {'backend':<10}{'hardware':<34}{'samples':>10}{'hours':>8}"
-        f"{'samples/h':>12}{'speedup':>9}",
-        "  " + "-" * 83,
-    ]
+    # A speedup column over a single row is a 1.0x against itself, which reads
+    # as a measured comparison. Only show it once there is something to compare.
+    comparative = len(rows) > 1
+    header = (f"  {'backend':<10}{'hardware':<34}{'samples':>10}{'hours':>8}"
+              f"{'samples/h':>12}")
+    lines = [header + (f"{'speedup':>9}" if comparative else ""),
+             "  " + "-" * (83 if comparative else 74)]
     for row in rows:
         speedup = row.get("speedup_vs_slowest")
         speedup_text = f"{speedup:.1f}x" if speedup else "-"
         lines.append(
             f"  {row['backend']:<10}{row['hardware'][:33]:<34}{row['n_samples']:>10}"
-            f"{row['elapsed_hours']:>8.2f}{row['samples_per_hour']:>12,.0f}{speedup_text:>9}")
+            f"{row['elapsed_hours']:>8.2f}{row['samples_per_hour']:>12,.0f}"
+            + (f"{speedup_text:>9}" if comparative else ""))
     lines.append("")
-    lines.append("  " + comparison["caveat"])
+    # Derived from the rows in hand, not read back from the artefact. A stored
+    # caveat outlives the run that produced it: throughput.json carries one
+    # written when two backends were expected, and reprinting it under a
+    # single-row table tells the reader a comparison was measured that was not.
+    lines.append("  " + caveat_for(rows))
     return "\n".join(lines)

@@ -42,7 +42,7 @@ them can drift.
 
 **Check numerically what cannot be imported.** The Isaac port has to rebuild the
 scene, the robot and the object catalogue in a different engine. Those cannot be
-imported, so `isaacgrasp.parity` records the 22 constants the port must
+imported, so `isaacgrasp.parity` records the 24 constants the port must
 reproduce and fails loudly if the upstream definitions move. The manifest is
 written into every dataset and every result file, so a number can be traced to
 the definitions it was produced under without trusting this document.
@@ -197,14 +197,14 @@ control "reproduced the original" was the headline reassurance of this
 repository and it was withdrawn rather than reconciled.
 
 **The bottleneck moved.** With the evaluation term shrunk, the points still
-scatter about the fit by 2.99 points. The binomial term at n=1500 accounts for
-1.29 of that. Variances add, so the remainder, 2.70 points, is the training run
+scatter about the fit by 2.66 points. The binomial term at n=1500 accounts for
+1.29 of that. Variances add, so the remainder, 2.33 points, is the training run
 itself: initialisation, data order, augmentation draws, at a fixed dataset size.
 
 That single number reorganises the experiment:
 
-* Retraining the same size moves held-out success by about 2.7 points. Doubling
-  the data moves it by 1.3. **The run-to-run noise is larger than the effect
+* Retraining the same size moves held-out success by about 2.3 points. Doubling
+  the data moves it by 1.06. **The run-to-run noise is larger than the effect
   being measured.**
 * More evaluation episodes are now wasted money. The next spend belongs on
   repeated seeds at the same sizes, or on more sizes.

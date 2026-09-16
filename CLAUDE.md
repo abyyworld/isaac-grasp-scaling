@@ -29,7 +29,7 @@ number unless they are regenerated.
 
 ```
 src/isaacgrasp/
-  parity.py          the 22 constants the port must reproduce, and the check
+  parity.py          the 24 constants the port must reproduce, and the check
   bootstrap.py       render backend selection, and the OSMesa/Triton guard
   collect.py         backend-agnostic dataset generation
   scaling.py         the experiment: train at each size, evaluate, measure angle

@@ -113,7 +113,7 @@ Put that next to the effect it has to be measured against. Going from 384 labell
 
 ### What this arm does not settle
 
-**It tops out below the study it follows up.** The largest point here is 12,288 labelled grasps. The original trained on roughly 15,000 and reported 58.4% held-out, which is above every point on this curve. The two scales are within a factor of 1.2 of each other, so this is not a curve that stops far short of its predecessor; it is one that climbs to almost the same place without closing the gap. The curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 32x range the held-out gap did not close and orientation did not leave chance.
+**It tops out below the study it follows up.** The largest point here is 12,288 labelled grasps. The original trained on 13,482 (about 15,000 collected, before its 10% validation split) and reported 58.4% held-out. Both figures are training-set sizes, so they compare directly: 1.10x, which is close enough that this is not a curve stopping far short of its predecessor but one that climbs to nearly the same place without closing the gap. That 58.4% is nominally above every point on this curve, but it rests on the same 89 held-out episodes as the control, with a 95% interval of 48.0% to 68.1% that brackets all of them, so the ordering is not resolved. The curve evidently continues upward past where this arm reached, and nothing here shows that more data cannot help. What it shows is that across a 32x range the held-out gap did not close and orientation did not leave chance.
 
 Reaching the original's scale, and the one to two orders of magnitude beyond it that the Isaac Lab port exists to make affordable, is the experiment this arm sets up rather than the one it performs. The Isaac backend has not been run.
 
@@ -188,8 +188,10 @@ make collect BACKEND=isaac SCENES=200000 NUM_ENVS=1024 DATA=data/isaac600k
 The two stages want different machines, and splitting them is what keeps this
 affordable:
 
-* **Dataset generation** needs an RTX-class GPU with working Vulkan and about
-  30 GB of disk. A spot RTX 4090 on Vast.ai or RunPod is a few dollars for the
+* **Dataset generation** needs an RTX-class GPU with working Vulkan, about
+  30 GB of disk for the Isaac Sim install and at least 40 GB free in total,
+  which is what `setup_cloud.sh --check` enforces; `docs/setup-cloud.md`
+  recommends renting 60 GB. A spot RTX 4090 on Vast.ai or RunPod is a few dollars for the
   whole run. GCP's free trial and the GitHub Student Pack's Azure credit both
   cover it. Paying more does not help: the A100 and the H100 are compute dies
   with no RT cores, so they install Isaac Sim happily and then fail at the
@@ -225,7 +227,7 @@ a commit pinned in `pyproject.toml`. There is no copy of any of them here, so
 none of them can drift.
 
 **What cannot be imported is checked numerically.** `isaacgrasp.parity` records
-the 22 constants the port must reproduce, from the table height and the camera
+the 24 constants the port must reproduce, from the table height and the camera
 field of view to the 0.08 m lift that defines success, and fails loudly if the
 upstream definitions move. The manifest is written into every dataset and every
 result file, so a number can be traced to the definitions it was produced under
@@ -245,10 +247,14 @@ for byte. That is what makes the throughput comparison a comparison of
 simulators rather than of two separately-tuned pipelines.
 
 **The control is re-run, never quoted.** The heuristic does not depend on
-training data, so it should reproduce the original study exactly. It is the
-first number in the results below for that reason: if it had come out different,
-something in the environment had moved and every other number here would be
-suspect.
+training data, so it is the first number in the results below: it is the check
+that nothing in the environment moved. It did not come out identical. The
+original reported 75.3% on 89 held-out trials; re-run here on 1,500 it gives
+79.5%. The two are consistent, the original interval being roughly 65% to 83%,
+but they are not the same number, and the more precise one is the bar the
+learned policy has to clear. The earlier wording here claimed the control
+"reproduced the original exactly"; that claim was withdrawn rather than
+reconciled, and `docs/design.md` records why.
 
 **Training subsets are nested and the validation set is fixed.** Every point on
 the curve validates on the same held-out 600 scenes, and the training set at
@@ -279,7 +285,7 @@ variables. The design keeps them apart:
 
 ```
 src/isaacgrasp/
-  parity.py            the 22 constants the port must reproduce, and the check
+  parity.py            the 24 constants the port must reproduce, and the check
   bootstrap.py         render backend selection, and the OSMesa/Triton guard
   collect.py           backend-agnostic dataset generation
   scaling.py           the experiment: train at each size, evaluate, measure angle

@@ -29,11 +29,17 @@ ORIGINAL = {"cnn_unseen": 0.584, "heuristic_unseen": 0.753,
             "heuristic_unseen_n": 89, "heuristic_seen_n": 111,
             "heuristic_unseen_ci": (0.654, 0.831),
             # Its dataset size. The predecessor's docs/results.md records
-            # 13,482 training samples at val_fraction 0.1 split by episode,
-            # so the collected total is about 14,980 grasp attempts. Its
-            # dataset is named grasp15k_multi for that reason. Quoted as
-            # "roughly 15,000" everywhere, never as a hand-typed literal.
-            "dataset_samples": 14_980}
+            # 13,482 TRAINING samples at val_fraction 0.1 split by episode,
+            # so about 14,980 were collected. train_samples is the one to
+            # compare against this curve: scaling.py sets TrainConfig(limit),
+            # and the predecessor applies limit to the training episodes
+            # AFTER the validation split, so both sides are train-only.
+            # Comparing 12,288 against the collected 14,980 instead would
+            # understate how close this arm got.
+            "dataset_samples": 14_980, "train_samples": 13_482,
+            # The held-out CNN figure rests on the same 89 episodes as the
+            # 75.3% control, from results/baseline/cnn.json there: 52/89.
+            "cnn_unseen_n": 89, "cnn_unseen_ci": (0.4805, 0.6811)}
 
 BACKEND_NAMES = {"mujoco": "MuJoCo", "isaac": "Isaac Lab"}
 
@@ -487,15 +493,21 @@ def readme_block(result: dict, figure: str | None,
         "### What this arm does not settle",
         "",
         f"**It tops out below the study it follows up.** The largest point here is "
-        f"{last['train_samples']:,} labelled grasps. The original trained on roughly "
-        f"{round(ORIGINAL['dataset_samples'], -3):,} and reported "
-        f"{ORIGINAL['cnn_unseen']:.1%} held-out, which is above every point on this "
-        f"curve. The two scales are within a factor of "
-        f"{ORIGINAL['dataset_samples'] / last['train_samples']:.1f} of each other, so "
-        f"this is not a curve that stops far short of its predecessor; it is one that "
-        f"climbs to almost the same place without closing the gap. The curve evidently "
-        f"continues upward past where this arm reached, and nothing here shows that more "
-        f"data cannot help. What it shows is "
+        f"{last['train_samples']:,} labelled grasps. The original trained on "
+        f"{ORIGINAL['train_samples']:,} (about "
+        f"{round(ORIGINAL['dataset_samples'], -3):,} collected, before its 10% "
+        f"validation split) and reported {ORIGINAL['cnn_unseen']:.1%} held-out. "
+        f"Both figures are training-set sizes, so they compare directly: "
+        f"{ORIGINAL['train_samples'] / last['train_samples']:.2f}x, which is close "
+        f"enough that this is not a curve stopping far short of its predecessor but "
+        f"one that climbs to nearly the same place without closing the gap. That "
+        f"{ORIGINAL['cnn_unseen']:.1%} is nominally above every point on this curve, "
+        f"but it rests on the same {ORIGINAL['cnn_unseen_n']} held-out episodes as "
+        f"the control, with a 95% interval of {ORIGINAL['cnn_unseen_ci'][0]:.1%} to "
+        f"{ORIGINAL['cnn_unseen_ci'][1]:.1%} that brackets all of them, so the "
+        f"ordering is not resolved. The curve evidently continues upward past where "
+        f"this arm reached, and nothing here shows that more data cannot help. What "
+        f"it shows is "
         f"that across a {last['train_samples'] / first['train_samples']:.0f}x range the "
         f"held-out gap did not close and orientation did not leave chance.",
         "",
